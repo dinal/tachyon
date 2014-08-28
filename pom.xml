@@ -70,6 +70,10 @@
         <enabled>false</enabled>
       </snapshots>
     </repository>
+<repository>
+    <id>jxio</id>
+        <url>file:jxio/</url>
+        </repository>
   </repositories>
 
   <pluginRepositories>
