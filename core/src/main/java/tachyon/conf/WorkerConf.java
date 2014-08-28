@@ -54,6 +54,8 @@ public class WorkerConf extends Utils {
 
   public final int WORKER_PER_THREAD_CHECKPOINT_CAP_MB_SEC;
 
+  public final String NETWORK_TYPE;
+
   private WorkerConf() {
     MASTER_HOSTNAME = getProperty("tachyon.master.hostname", "localhost");
     MASTER_PORT = getIntProperty("tachyon.master.port", Constants.DEFAULT_MASTER_PORT);
@@ -77,5 +79,7 @@ public class WorkerConf extends Utils {
     WORKER_CHECKPOINT_THREADS = getIntProperty("tachyon.worker.checkpoint.threads", 1);
     WORKER_PER_THREAD_CHECKPOINT_CAP_MB_SEC =
         getIntProperty("tachyon.worker.per.thread.checkpoint.cap.mb.sec", Constants.SECOND_MS);
+
+    NETWORK_TYPE = getProperty("tachyon.net.type", "tcp");
   }
 }

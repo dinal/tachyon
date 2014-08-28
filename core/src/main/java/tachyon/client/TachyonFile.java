@@ -16,14 +16,19 @@ package tachyon.client;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.log4j.Logger;
+
+import com.mellanox.jxio.jxioConnection.JxioConnection;
 
 import tachyon.Constants;
 import tachyon.UnderFileSystem;
@@ -471,29 +476,49 @@ public class TachyonFile implements Comparable<TachyonFile> {
 
   private ByteBuffer retrieveByteBufferFromRemoteMachine(InetSocketAddress address,
       ClientBlockInfo blockInfo) throws IOException {
-    SocketChannel socketChannel = SocketChannel.open();
-    socketChannel.connect(address);
-
-    LOG.info("Connected to remote machine " + address + " sent");
     long blockId = blockInfo.blockId;
-    DataServerMessage sendMsg = DataServerMessage.createBlockRequestMessage(blockId);
-    while (!sendMsg.finishSending()) {
-      sendMsg.send(socketChannel);
-    }
-
-    LOG.info("Data " + blockId + " to remote machine " + address + " sent");
-
     DataServerMessage recvMsg = DataServerMessage.createBlockResponseMessage(false, blockId);
-    while (!recvMsg.isMessageReady()) {
-      int numRead = recvMsg.recv(socketChannel);
-      if (numRead == -1) {
-        break;
+    LOG.info("TachyonFile:retrieveByteBufferFromRemoteMachine");
+    if (USER_CONF.NETWORK_TYPE.equals("rdma")) {
+      String uri =
+          String.format("rdma://%s:%d/blockId=%d", address.getHostName(), address.getPort(),
+              blockId);
+      try {
+        JxioConnection jc = new JxioConnection(new URI(uri));
+        InputStream input = jc.getInputStream();
+        LOG.info("Connected to remote machine " + address + " sent");
+
+        recvMsg.recv(input);
+        LOG.info("Data " + blockId + " from remote machine " + address + " received");
+
+        jc.disconnect();
+      } catch (URISyntaxException e) {
+        throw new IOException("Could not construct rdma uri");
+      } catch (ConnectException e) {
+        throw new IOException("Could not connect to rdma server");
       }
+    } else {
+      SocketChannel socketChannel = SocketChannel.open();
+      socketChannel.connect(address);
+
+      LOG.info("Connected to remote machine " + address + " sent");
+      DataServerMessage sendMsg = DataServerMessage.createBlockRequestMessage(blockId);
+      while (!sendMsg.finishSending()) {
+        sendMsg.send(socketChannel);
+      }
+
+      LOG.info("Data " + blockId + " to remote machine " + address + " sent");
+
+      while (!recvMsg.isMessageReady()) {
+        int numRead = recvMsg.recv(socketChannel);
+        if (numRead == -1) {
+          break;
+        }
+      }
+      LOG.info("Data " + blockId + " from remote machine " + address + " received");
+
+      socketChannel.close();
     }
-    LOG.info("Data " + blockId + " from remote machine " + address + " received");
-
-    socketChannel.close();
-
     if (!recvMsg.isMessageReady()) {
       LOG.info("Data " + blockId + " from remote machine is not ready.");
       return null;

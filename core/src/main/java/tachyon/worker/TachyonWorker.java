@@ -16,6 +16,8 @@ package tachyon.worker;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 
 import org.apache.log4j.Logger;
@@ -89,9 +91,9 @@ public class TachyonWorker implements Runnable {
    *          The maximum memory space this TachyonWorker can use, in bytes
    * @return The new TachyonWorker
    */
-  public static synchronized TachyonWorker createWorker(String masterAddress,
-      String workerAddress, int dataPort, int selectorThreads, int acceptQueueSizePerThreads,
-      int workerThreads, String localFolder, long spaceLimitBytes) {
+  public static synchronized TachyonWorker createWorker(String masterAddress, String workerAddress,
+      int dataPort, int selectorThreads, int acceptQueueSizePerThreads, int workerThreads,
+      String localFolder, long spaceLimitBytes) {
     String[] address = masterAddress.split(":");
     InetSocketAddress master = new InetSocketAddress(address[0], Integer.parseInt(address[1]));
     address = workerAddress.split(":");
@@ -193,9 +195,21 @@ public class TachyonWorker implements Runnable {
 
     mWorkerServiceHandler = new WorkerServiceHandler(mWorkerStorage);
 
-    mDataServer =
-        new DataServer(new InetSocketAddress(workerAddress.getHostName(), dataPort),
-            mWorkerStorage);
+    WorkerConf wConf = WorkerConf.get();
+    if (wConf.NETWORK_TYPE.equals("rdma")) {
+      try {
+        mDataServer =
+            new RDMADataServer(new URI("rdma://" + workerAddress.getHostName() + ":" + dataPort),
+                mWorkerStorage);
+      } catch (URISyntaxException e) {
+        LOG.error("could not resolve rdma data server uri");
+        CommonUtils.runtimeException(e);
+      }
+    } else {
+      mDataServer =
+          new TCPDataServer(new InetSocketAddress(workerAddress.getHostName(), dataPort),
+              mWorkerStorage);
+    }
     mDataServerThread = new Thread(mDataServer);
 
     mHeartbeatThread = new Thread(this);
@@ -208,8 +222,8 @@ public class TachyonWorker implements Runnable {
       mServer =
           new TThreadedSelectorServer(new TThreadedSelectorServer.Args(
               mServerTNonblockingServerSocket).processor(processor)
-              .selectorThreads(selectorThreads)
-              .acceptQueueSizePerThread(acceptQueueSizePerThreads).workerThreads(workerThreads));
+              .selectorThreads(selectorThreads).acceptQueueSizePerThread(acceptQueueSizePerThreads)
+              .workerThreads(workerThreads));
     } catch (TTransportException e) {
       LOG.error(e.getMessage(), e);
       CommonUtils.runtimeException(e);

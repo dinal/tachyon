@@ -14,13 +14,17 @@
  */
 package tachyon.worker;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.SocketChannel;
 
 import org.apache.log4j.Logger;
+
+import com.mellanox.jxio.Msg;
 
 import tachyon.Constants;
 import tachyon.client.TachyonByteBuffer;
@@ -304,6 +308,18 @@ public class DataServerMessage {
   }
 
   /**
+   * Get the read only buffer of the message's header.
+   * 
+   * @return The read only buffer of the message's header
+   */
+  public ByteBuffer getReadOnlyHeader() {
+    checkReady();
+    ByteBuffer ret = mHeader.asReadOnlyBuffer();
+    ret.flip();
+    return ret;
+  }
+
+  /**
    * Get the read only buffer of the message's data. Make sure the message is ready before calling
    * this method.
    * 
@@ -348,28 +364,7 @@ public class DataServerMessage {
     int numRead = 0;
     if (mHeader.remaining() > 0) {
       numRead = socketChannel.read(mHeader);
-      if (mHeader.remaining() == 0) {
-        mHeader.flip();
-        short msgType = mHeader.getShort();
-        assert (mMsgType == msgType);
-        mBlockId = mHeader.getLong();
-        mOffset = mHeader.getLong();
-        mLength = mHeader.getLong();
-        // TODO make this better to truncate the file.
-        assert mLength < Integer.MAX_VALUE;
-        if (mMsgType == DATA_SERVER_RESPONSE_MESSAGE) {
-          if (mLength == -1) {
-            mData = ByteBuffer.allocate(0);
-          } else {
-            mData = ByteBuffer.allocate((int) mLength);
-          }
-        }
-        LOG.info(String.format("data" + mData + ", blockId(%d), offset(%d), dataLength(%d)",
-            mBlockId, mOffset, mLength));
-        if (mMsgType == DATA_SERVER_REQUEST_MESSAGE || mLength <= 0) {
-          mIsMessageReady = true;
-        }
-      }
+      parseHeaderFields();
     } else {
       numRead = socketChannel.read(mData);
       if (mData.remaining() == 0) {
@@ -377,6 +372,51 @@ public class DataServerMessage {
       }
     }
 
+    return numRead;
+  }
+
+  private void parseHeaderFields() {
+    if (mHeader.remaining() == 0) {
+      mHeader.flip();
+      LOG.info("parsing header...");
+      short msgType = mHeader.getShort();
+      assert (mMsgType == msgType);
+      mBlockId = mHeader.getLong();
+      mOffset = mHeader.getLong();
+      mLength = mHeader.getLong();
+      LOG.info("mLength: " + mLength);
+      // TODO make this better to truncate the file.
+      assert mLength < Integer.MAX_VALUE;
+      if (mMsgType == DATA_SERVER_RESPONSE_MESSAGE) {
+        if (mLength == -1) {
+          mData = ByteBuffer.allocate(0);
+        } else {
+          mData = ByteBuffer.allocate((int) mLength);
+        }
+      }
+      LOG.info(String.format("data" + mData + ", blockId(%d), offset(%d), dataLength(%d)",
+          mBlockId, mOffset, mLength));
+      if (mMsgType == DATA_SERVER_REQUEST_MESSAGE || mLength <= 0) {
+        mIsMessageReady = true;
+      }
+    }
+  }
+
+  public int recv(InputStream input) throws IOException {
+    LOG.info("recv(IS)");
+    isSend(false);
+    int numRead = input.read(mHeader.array());
+    if (numRead == -1)
+      return numRead;
+    mHeader.position(numRead);
+    parseHeaderFields();
+    LOG.info("going to read " + mData);
+    numRead = input.read(mData.array());
+    mData.position(numRead);
+    LOG.info("after read " + mData + " numRead:" + numRead);
+    if (mData.remaining() == 0) {
+      mIsMessageReady = true;
+    }
     return numRead;
   }
 
@@ -394,6 +434,34 @@ public class DataServerMessage {
 
     if (mHeader.remaining() == 0) {
       socketChannel.write(mData);
+    }
+  }
+
+  /**
+   * copy message to buffer
+   * 
+   * @param buffer
+   *          The buffer to copy message into
+   */
+  public void copy(ByteBuffer buffer) {
+    isSend(true);
+    LOG.debug("copying " + buffer + " mHeader:" + mHeader + " mData:" + mData);
+    try {
+      buffer.put(mHeader);
+      if (mHeader.remaining() == 0) {
+        int remaining = buffer.remaining();
+        int lim = Math.min(mData.position() + remaining, mData.capacity());
+        mData.limit(lim);
+        buffer.put(mData.slice());
+        mData.position(lim);
+        mData.limit(mData.capacity());
+
+        // while (buffer.hasRemaining()) {
+        // buffer.put(mData.get());
+        // }
+      }
+    } catch (Exception e) {
+      LOG.error("ERROR " + e.getMessage() + e.getMessage());
     }
   }
 

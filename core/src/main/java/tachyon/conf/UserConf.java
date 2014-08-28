@@ -43,6 +43,8 @@ public class UserConf extends Utils {
   public final long DEFAULT_BLOCK_SIZE_BYTE;
 
   public final int REMOTE_READ_BUFFER_SIZE_BYTE;
+  
+  public final String NETWORK_TYPE;
 
   private UserConf() {
     FAILED_SPACE_REQUEST_LIMITS = getIntProperty("tachyon.user.failed.space.request.limits", 3);
@@ -54,5 +56,6 @@ public class UserConf extends Utils {
         getLongProperty("tachyon.user.default.block.size.byte", Constants.GB);
     REMOTE_READ_BUFFER_SIZE_BYTE =
         getIntProperty("tachyon.user.remote.read.buffer.size.byte", Constants.MB);
+    NETWORK_TYPE = getProperty("tachyon.net.type", "tcp");
   }
 }
