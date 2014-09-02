@@ -485,6 +485,7 @@ public class TachyonFile implements Comparable<TachyonFile> {
               blockId);
       try {
         JxioConnection jc = new JxioConnection(new URI(uri));
+        jc.setRcvSize(655360); //10 buffers in msg pool
         InputStream input = jc.getInputStream();
         LOG.info("Connected to remote machine " + address + " sent");
 
