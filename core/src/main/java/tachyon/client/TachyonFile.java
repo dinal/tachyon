@@ -37,6 +37,7 @@ import tachyon.thrift.ClientBlockInfo;
 import tachyon.thrift.NetAddress;
 import tachyon.worker.DataServerMessage;
 import tachyon.util.CommonUtils;
+import tachyon.util.NetworkUtils;
 
 /**
  * Tachyon File.
@@ -480,24 +481,20 @@ public class TachyonFile implements Comparable<TachyonFile> {
     DataServerMessage recvMsg = DataServerMessage.createBlockResponseMessage(false, blockId);
     LOG.info("TachyonFile:retrieveByteBufferFromRemoteMachine");
     if (USER_CONF.NETWORK_TYPE.equals("rdma")) {
-      String uri =
-          String.format("rdma://%s:%d/blockId=%d", address.getHostName(), address.getPort(),
-              blockId);
-      try {
-        JxioConnection jc = new JxioConnection(new URI(uri));
-        jc.setRcvSize(655360); //10 buffers in msg pool
-        InputStream input = jc.getInputStream();
-        LOG.info("Connected to remote machine " + address + " sent");
-
-        recvMsg.recv(input);
-        LOG.info("Data " + blockId + " from remote machine " + address + " received");
-
-        jc.disconnect();
-      } catch (URISyntaxException e) {
-        throw new IOException("Could not construct rdma uri");
-      } catch (ConnectException e) {
-        throw new IOException("Could not connect to rdma server");
+      URI uri =
+          NetworkUtils.createRdmaUri(address.getHostName(), address.getPort(), blockId, 0, -1);
+      if (uri == null) {
+        return null;
       }
+      JxioConnection jc = new JxioConnection(uri);
+      jc.setRcvSize(655360); // 10 buffers in msg pool
+      InputStream input = jc.getInputStream();
+      LOG.info("Connected to remote machine " + address + " sent");
+
+      recvMsg.recv(input);
+      LOG.info("Data " + blockId + " from remote machine " + address + " received");
+
+      jc.disconnect();
     } else {
       SocketChannel socketChannel = SocketChannel.open();
       socketChannel.connect(address);

@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.util.Enumeration;
 
@@ -127,5 +129,17 @@ public class NetworkUtils {
     }
 
     return InetAddress.getByName(hostname).getCanonicalHostName();
+  }
+
+  public static URI createRdmaUri(String address, int port, long blockId, long offset, long length) {
+    try {
+      String uri =
+          String.format("rdma://%s:%d/blockId=%d&offset=%d&length=%d", address, port, blockId, 0,
+              -1);
+      return new URI(uri);
+    } catch (URISyntaxException e) {
+      LOG.error("rdma uri could not be resolved");
+      return null;
+    }
   }
 }

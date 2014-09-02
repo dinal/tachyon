@@ -36,6 +36,7 @@ import tachyon.thrift.ClientBlockInfo;
 import tachyon.thrift.NetAddress;
 import tachyon.worker.DataServerMessage;
 import tachyon.util.CommonUtils;
+import tachyon.util.NetworkUtils;
 
 /**
  * BlockInStream for remote block.
@@ -262,39 +263,36 @@ public class RemoteBlockInStream extends BlockInStream {
 
   private ByteBuffer retrieveByteBufferFromRemoteMachine(InetSocketAddress address, long blockId,
       long offset, long length) throws IOException {
-    LOG.info("RemoteBlockInStream:retrieveByteBufferFromRemoteMachine "+address);
+    LOG.info("RemoteBlockInStream:retrieveByteBufferFromRemoteMachine " + address);
 
     DataServerMessage recvMsg = DataServerMessage.createBlockResponseMessage(false, blockId);
     if (USER_CONF.NETWORK_TYPE.equals("rdma")) {
-      String uri =
-          String.format("rdma://%s:%d/blockId=%d", address.getHostName(), address.getPort(),
-              blockId);
-      try {
-        JxioConnection jc = new JxioConnection(new URI(uri));
-        jc.setRcvSize(655360); //10 buffers in msg pool
-        InputStream input = jc.getInputStream();
-        LOG.info("Connected to remote machine " + address + " sent");
-
-        recvMsg.recv(input);
-        LOG.info("Data " + blockId + " from remote machine " + address + " received");
-
-        jc.disconnect();
-      } catch (URISyntaxException e) {
-        throw new IOException("Could not construct rdma uri");
-      } catch (ConnectException e) {
-        throw new IOException("Could not connect to rdma server");
+      URI uri =
+          NetworkUtils.createRdmaUri(address.getHostName(), address.getPort(), blockId, offset,
+              length);
+      if (uri == null) {
+        return null;
       }
+      JxioConnection jc = new JxioConnection(uri);
+      jc.setRcvSize(655360); // 10 buffers in msg pool
+      InputStream input = jc.getInputStream();
+      LOG.info("Connected to remote machine " + address + " sent");
+
+      recvMsg.recv(input);
+      LOG.info("Data " + blockId + " from remote machine " + address + " received");
+
+      jc.disconnect();
     } else {
       SocketChannel socketChannel = SocketChannel.open();
       socketChannel.connect(address);
-  
+
       LOG.info("Connected to remote machine " + address + " sent");
       DataServerMessage sendMsg =
           DataServerMessage.createBlockRequestMessage(blockId, offset, length);
       while (!sendMsg.finishSending()) {
         sendMsg.send(socketChannel);
       }
-  
+
       LOG.info("Data " + blockId + " to remote machine " + address + " sent");
 
       while (!recvMsg.isMessageReady()) {
@@ -304,7 +302,7 @@ public class RemoteBlockInStream extends BlockInStream {
         }
       }
       LOG.info("Data " + blockId + " from remote machine " + address + " received");
-  
+
       socketChannel.close();
     }
     if (!recvMsg.isMessageReady()) {

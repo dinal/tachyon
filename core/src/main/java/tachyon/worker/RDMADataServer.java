@@ -31,8 +31,6 @@ public class RDMADataServer extends DataServer {
   private final ServerPortal listener;
   private ArrayList<MsgPool> msgPools = new ArrayList<MsgPool>();
   private final int numMsgPoolBuffers = 500;
-  private boolean waitingToClose = false;
-  private boolean sessionClosed = false;
 
   public RDMADataServer(URI uri, WorkerStorage workerStorage) {
     LOG.info("Starting RDMADataServer @ " + uri.toString());
@@ -70,10 +68,13 @@ public class RDMADataServer extends DataServer {
     private ServerSession session;
 
     public SessionServerCallbacks(String uri) {
-      long blockId = Long.parseLong(uri.split("blockId=")[1].split("\\?")[0]);
-      LOG.info("got request for block id " + blockId);
+      String[] params = uri.split("blockId=")[1].split("\\?")[0].split("&");
+      long blockId = Long.parseLong(params[0]);
+      long offset = Long.parseLong(params[1].split("=")[1]);
+      long length = Long.parseLong(params[2].split("=")[1]);
+      LOG.info("got request for block id " + blockId+" with offset "+offset+" and length "+length);
       int lockId = mBlocksLocker.lock(blockId);
-      responseMessage = DataServerMessage.createBlockResponseMessage(true, blockId, 0, -1);
+      responseMessage = DataServerMessage.createBlockResponseMessage(true, blockId, offset, length);
       responseMessage.setLockId(lockId);
     }
 
