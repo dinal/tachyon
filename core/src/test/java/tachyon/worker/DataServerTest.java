@@ -29,6 +29,7 @@ import org.junit.Test;
 
 import com.mellanox.jxio.jxioConnection.JxioConnection;
 
+import tachyon.NetworkType;
 import tachyon.TestUtils;
 import tachyon.client.TachyonFS;
 import tachyon.client.WriteType;
@@ -69,9 +70,9 @@ public class DataServerTest {
     int fileId = TestUtils.createByteFile(mTFS, "/testFile", WriteType.MUST_CACHE, 10);
     long blockId = mTFS.getBlockId(fileId, 0);
     DataServerMessage recvMsg = DataServerMessage.createBlockResponseMessage(false, blockId, 0, 6);
-    if (USER_CONF.NETWORK_TYPE.equals("rdma")) {
+    if (NetworkType.isRdma(USER_CONF.NETWORK_TYPE)) {
       URI uri =
-          NetworkUtils.createRdmaUri(mTFS.getFileBlocks(fileId).get(0).getLocations().get(0).mHost,
+          NetworkUtils.createRdmaUri(USER_CONF.NETWORK_TYPE, mTFS.getFileBlocks(fileId).get(0).getLocations().get(0).mHost,
               mTFS.getFileBlocks(fileId).get(0).getLocations().get(0).mPort + 1, blockId, 0, 6);
       if (uri != null) {
         JxioConnection jc = new JxioConnection(uri);
@@ -106,9 +107,9 @@ public class DataServerTest {
     int fileId = TestUtils.createByteFile(mTFS, "/testFile", WriteType.MUST_CACHE, 10);
     long blockId = mTFS.getBlockId(fileId, 0);
     DataServerMessage recvMsg = DataServerMessage.createBlockResponseMessage(false, blockId, 2, 6);
-    if (USER_CONF.NETWORK_TYPE.equals("rdma")) {
+    if (NetworkType.isRdma(USER_CONF.NETWORK_TYPE)) {
       URI uri =
-          NetworkUtils.createRdmaUri(mTFS.getFileBlocks(fileId).get(0).getLocations().get(0).mHost,
+          NetworkUtils.createRdmaUri(USER_CONF.NETWORK_TYPE, mTFS.getFileBlocks(fileId).get(0).getLocations().get(0).mHost,
               mTFS.getFileBlocks(fileId).get(0).getLocations().get(0).mPort + 1, blockId, 0, 6);
       if (uri != null) {
         JxioConnection jc = new JxioConnection(uri);
@@ -143,9 +144,9 @@ public class DataServerTest {
     int fileId = TestUtils.createByteFile(mTFS, "/testFile", WriteType.MUST_CACHE, 10);
     long blockId = mTFS.getBlockId(fileId, 0);
     DataServerMessage recvMsg = DataServerMessage.createBlockResponseMessage(false, blockId);
-    if (USER_CONF.NETWORK_TYPE.equals("rdma")) {
+    if (NetworkType.isRdma(USER_CONF.NETWORK_TYPE)) {
       URI uri =
-          NetworkUtils.createRdmaUri(mTFS.getFileBlocks(fileId).get(0).getLocations().get(0).mHost,
+          NetworkUtils.createRdmaUri(USER_CONF.NETWORK_TYPE, mTFS.getFileBlocks(fileId).get(0).getLocations().get(0).mHost,
               mTFS.getFileBlocks(fileId).get(0).getLocations().get(0).mPort + 1, blockId, 0, 6);
       if (uri != null) {
         JxioConnection jc = new JxioConnection(uri);

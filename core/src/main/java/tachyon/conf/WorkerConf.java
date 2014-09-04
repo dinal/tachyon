@@ -15,6 +15,7 @@
 package tachyon.conf;
 
 import tachyon.Constants;
+import tachyon.NetworkType;
 import tachyon.util.CommonUtils;
 
 public class WorkerConf extends Utils {
@@ -54,7 +55,7 @@ public class WorkerConf extends Utils {
 
   public final int WORKER_PER_THREAD_CHECKPOINT_CAP_MB_SEC;
 
-  public final String NETWORK_TYPE;
+  public final NetworkType NETWORK_TYPE;
 
   private WorkerConf() {
     MASTER_HOSTNAME = getProperty("tachyon.master.hostname", "localhost");
@@ -80,6 +81,6 @@ public class WorkerConf extends Utils {
     WORKER_PER_THREAD_CHECKPOINT_CAP_MB_SEC =
         getIntProperty("tachyon.worker.per.thread.checkpoint.cap.mb.sec", Constants.SECOND_MS);
 
-    NETWORK_TYPE = getProperty("tachyon.net.type", "tcp");
+    NETWORK_TYPE = getEnumProperty("tachyon.worker.net.type", NetworkType.TCP);
   }
 }

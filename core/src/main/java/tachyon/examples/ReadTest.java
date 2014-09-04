@@ -94,6 +94,6 @@ public class ReadTest {
       }
     }
     time = System.nanoTime() - time;
-    System.out.println("Finished reading file " + sFilePath + " time " + time);
+    System.out.println("Finished reading file " + sFilePath + " time " + time+" ");
   }
 }

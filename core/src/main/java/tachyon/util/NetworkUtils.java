@@ -12,6 +12,7 @@ import java.util.Enumeration;
 import org.apache.log4j.Logger;
 
 import tachyon.Constants;
+import tachyon.NetworkType;
 
 /**
  * Common network utilities shared by all components in Tachyon.
@@ -131,11 +132,19 @@ public class NetworkUtils {
     return InetAddress.getByName(hostname).getCanonicalHostName();
   }
 
-  public static URI createRdmaUri(String address, int port, long blockId, long offset, long length) {
-    try {
-      String uri =
+  public static URI createRdmaUri(NetworkType type, String address, int port, long blockId,
+      long offset, long length) {
+    String uri;
+    if (type == NetworkType.RDMA) {
+      uri =
           String.format("rdma://%s:%d/blockId=%d&offset=%d&length=%d", address, port, blockId, 0,
               -1);
+    } else {
+      uri =
+          String
+              .format("tcp://%s:%d/blockId=%d&offset=%d&length=%d", address, port, blockId, 0, -1);
+    }
+    try {
       return new URI(uri);
     } catch (URISyntaxException e) {
       LOG.error("rdma uri could not be resolved");

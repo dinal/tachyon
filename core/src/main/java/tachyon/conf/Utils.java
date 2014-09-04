@@ -48,6 +48,11 @@ class Utils {
     return Long.valueOf(getProperty(property, defaultValue + ""));
   }
 
+  public static <T extends Enum<T>> T getEnumProperty(String property, T defaultValue) {
+    final String val = getProperty(property, null);
+    return val == null ? defaultValue : Enum.valueOf(defaultValue.getDeclaringClass(), val);
+  }
+
   public static String getProperty(String property) {
     String ret = System.getProperty(property);
     if (ret == null) {

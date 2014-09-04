@@ -31,6 +31,7 @@ import org.apache.log4j.Logger;
 import com.mellanox.jxio.jxioConnection.JxioConnection;
 
 import tachyon.Constants;
+import tachyon.NetworkType;
 import tachyon.UnderFileSystem;
 import tachyon.conf.UserConf;
 import tachyon.thrift.ClientBlockInfo;
@@ -480,9 +481,9 @@ public class TachyonFile implements Comparable<TachyonFile> {
     long blockId = blockInfo.blockId;
     DataServerMessage recvMsg = DataServerMessage.createBlockResponseMessage(false, blockId);
     LOG.info("TachyonFile:retrieveByteBufferFromRemoteMachine");
-    if (USER_CONF.NETWORK_TYPE.equals("rdma")) {
+    if (NetworkType.isRdma(USER_CONF.NETWORK_TYPE)) {
       URI uri =
-          NetworkUtils.createRdmaUri(address.getHostName(), address.getPort(), blockId, 0, -1);
+          NetworkUtils.createRdmaUri(USER_CONF.NETWORK_TYPE, address.getHostName(), address.getPort(), blockId, 0, -1);
       if (uri == null) {
         return null;
       }

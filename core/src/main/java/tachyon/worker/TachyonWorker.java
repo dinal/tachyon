@@ -28,6 +28,7 @@ import org.apache.thrift.transport.TNonblockingServerSocket;
 import org.apache.thrift.transport.TTransportException;
 
 import tachyon.Constants;
+import tachyon.NetworkType;
 import tachyon.Version;
 import tachyon.conf.WorkerConf;
 import tachyon.thrift.BlockInfoException;
@@ -196,7 +197,8 @@ public class TachyonWorker implements Runnable {
     mWorkerServiceHandler = new WorkerServiceHandler(mWorkerStorage);
 
     WorkerConf wConf = WorkerConf.get();
-    if (wConf.NETWORK_TYPE.equals("rdma")) {
+    switch (wConf.NETWORK_TYPE) {
+    case RDMA:
       try {
         mDataServer =
             new RDMADataServer(new URI("rdma://" + workerAddress.getHostName() + ":" + dataPort),
@@ -205,10 +207,22 @@ public class TachyonWorker implements Runnable {
         LOG.error("could not resolve rdma data server uri");
         CommonUtils.runtimeException(e);
       }
-    } else {
+      break;
+    case TCP_RDMA:
+      try {
+        mDataServer =
+            new RDMADataServer(new URI("tcp://" + workerAddress.getHostName() + ":" + dataPort),
+                mWorkerStorage);
+      } catch (URISyntaxException e) {
+        LOG.error("could not resolve rdma_tcp data server uri");
+        CommonUtils.runtimeException(e);
+      }
+      break;
+    case TCP:
       mDataServer =
           new TCPDataServer(new InetSocketAddress(workerAddress.getHostName(), dataPort),
               mWorkerStorage);
+      break;
     }
     mDataServerThread = new Thread(mDataServer);
 

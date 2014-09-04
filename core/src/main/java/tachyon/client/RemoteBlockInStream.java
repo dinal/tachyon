@@ -30,6 +30,7 @@ import org.apache.log4j.Logger;
 import com.mellanox.jxio.jxioConnection.JxioConnection;
 
 import tachyon.Constants;
+import tachyon.NetworkType;
 import tachyon.UnderFileSystem;
 import tachyon.conf.UserConf;
 import tachyon.thrift.ClientBlockInfo;
@@ -266,9 +267,9 @@ public class RemoteBlockInStream extends BlockInStream {
     LOG.info("RemoteBlockInStream:retrieveByteBufferFromRemoteMachine " + address);
 
     DataServerMessage recvMsg = DataServerMessage.createBlockResponseMessage(false, blockId);
-    if (USER_CONF.NETWORK_TYPE.equals("rdma")) {
+    if (NetworkType.isRdma(USER_CONF.NETWORK_TYPE)) {
       URI uri =
-          NetworkUtils.createRdmaUri(address.getHostName(), address.getPort(), blockId, offset,
+          NetworkUtils.createRdmaUri(USER_CONF.NETWORK_TYPE, address.getHostName(), address.getPort(), blockId, offset,
               length);
       if (uri == null) {
         return null;
