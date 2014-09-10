@@ -166,6 +166,11 @@ number.
   <td>128 MB</td>
   <td>Memory capacity of each worker node.</td>
 </tr>
+<tr>
+  <td>tachyon.worker.net.type</td>
+  <td>TCP</td>
+  <td>Network transport type. Valid options are TCP and RDMA</td>
+</tr>
 </table>
 
 # User Configuration
@@ -198,5 +203,10 @@ The user configuration specifies values regarding file system access.
   <td>tachyon.user.remote.read.buffer.size.byte</td>
   <td>1 MB</td>
   <td>The size of the file buffer to read data from remote Tachyon worker.</td>
+</tr>
+<tr>
+  <td>tachyon.user.net.type</td>
+  <td>TCP</td>
+  <td>Network transport type. Valid options are TCP and RDMA</td>
 </tr>
 </table>
