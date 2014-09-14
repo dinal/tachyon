@@ -2,6 +2,8 @@ package tachyon.worker;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 
 import org.apache.log4j.Logger;
@@ -25,6 +27,7 @@ import tachyon.util.CommonUtils;
 import tachyon.util.NetworkUtils;
 import tachyon.worker.netty.NettyDataServer;
 import tachyon.worker.nio.NIODataServer;
+import tachyon.worker.rdma.RDMADataServer;
 
 /**
  * Entry point for a worker daemon.
@@ -81,9 +84,9 @@ public class TachyonWorker implements Runnable {
    *          The maximum memory space this TachyonWorker can use, in bytes
    * @return The new TachyonWorker
    */
-  public static synchronized TachyonWorker createWorker(String masterAddress,
-      String workerAddress, int dataPort, int selectorThreads, int acceptQueueSizePerThreads,
-      int workerThreads, String localFolder, long spaceLimitBytes) {
+  public static synchronized TachyonWorker createWorker(String masterAddress, String workerAddress,
+      int dataPort, int selectorThreads, int acceptQueueSizePerThreads, int workerThreads,
+      String localFolder, long spaceLimitBytes) {
     String[] address = masterAddress.split(":");
     InetSocketAddress master = new InetSocketAddress(address[0], Integer.parseInt(address[1]));
     address = workerAddress.split(":");
@@ -205,8 +208,8 @@ public class TachyonWorker implements Runnable {
       mServer =
           new TThreadedSelectorServer(new TThreadedSelectorServer.Args(
               mServerTNonblockingServerSocket).processor(processor)
-              .selectorThreads(selectorThreads)
-              .acceptQueueSizePerThread(acceptQueueSizePerThreads).workerThreads(workerThreads));
+              .selectorThreads(selectorThreads).acceptQueueSizePerThread(acceptQueueSizePerThreads)
+              .workerThreads(workerThreads));
     } catch (TTransportException e) {
       LOG.error(e.getMessage(), e);
       throw Throwables.propagate(e);
@@ -219,12 +222,22 @@ public class TachyonWorker implements Runnable {
   private DataServer createDataServer(final InetSocketAddress dataAddress,
       final BlocksLocker blockLocker) {
     switch (WorkerConf.get().NETWORK_TYPE) {
-      case NIO:
-        return new NIODataServer(dataAddress, blockLocker);
-      case NETTY:
-        return new NettyDataServer(dataAddress, blockLocker);
-      default:
-        throw new AssertionError("Unknown network type: " + WorkerConf.get().NETWORK_TYPE);
+    case NIO:
+      return new NIODataServer(dataAddress, blockLocker);
+    case NETTY:
+      return new NettyDataServer(dataAddress, blockLocker);
+    case RDMA:
+      URI uri;
+      try {
+        uri = new URI("rdma://" + dataAddress.getHostName() + ":" + dataAddress.getPort());
+      } catch (URISyntaxException e) {
+        LOG.error("could not resolve rdma data server uri");
+        throw Throwables.propagate(e);
+      }
+      return new RDMADataServer(uri, blockLocker);
+
+    default:
+      throw new AssertionError("Unknown network type: " + WorkerConf.get().NETWORK_TYPE);
     }
   }
 
@@ -287,25 +300,25 @@ public class TachyonWorker implements Runnable {
 
       if (cmd != null) {
         switch (cmd.mCommandType) {
-          case Unknown:
-            LOG.error("Unknown command: " + cmd);
-            break;
-          case Nothing:
-            LOG.debug("Nothing command: " + cmd);
-            break;
-          case Register:
-            LOG.info("Register command: " + cmd);
-            mWorkerStorage.register();
-            break;
-          case Free:
-            mWorkerStorage.freeBlocks(cmd.mData);
-            LOG.info("Free command: " + cmd);
-            break;
-          case Delete:
-            LOG.info("Delete command: " + cmd);
-            break;
-          default:
-            throw new RuntimeException("Un-recognized command from master " + cmd.toString());
+        case Unknown:
+          LOG.error("Unknown command: " + cmd);
+          break;
+        case Nothing:
+          LOG.debug("Nothing command: " + cmd);
+          break;
+        case Register:
+          LOG.info("Register command: " + cmd);
+          mWorkerStorage.register();
+          break;
+        case Free:
+          mWorkerStorage.freeBlocks(cmd.mData);
+          LOG.info("Free command: " + cmd);
+          break;
+        case Delete:
+          LOG.info("Delete command: " + cmd);
+          break;
+        default:
+          throw new RuntimeException("Un-recognized command from master " + cmd.toString());
         }
       }
 

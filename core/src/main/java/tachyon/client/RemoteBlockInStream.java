@@ -4,20 +4,24 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.List;
 
 import org.apache.log4j.Logger;
 
+import com.mellanox.jxio.jxioConnection.JxioConnection;
+
 import tachyon.Constants;
+import tachyon.NetworkType;
 import tachyon.UnderFileSystem;
 import tachyon.conf.UserConf;
 import tachyon.thrift.ClientBlockInfo;
 import tachyon.thrift.NetAddress;
 import tachyon.util.CommonUtils;
 import tachyon.util.NetworkUtils;
-import tachyon.worker.nio.DataServerMessage;
+import tachyon.worker.DataServerMessage;
 
 /**
  * BlockInStream for remote block.
@@ -36,6 +40,7 @@ public class RemoteBlockInStream extends BlockInStream {
   private BlockOutStream mBlockOutStream = null;
 
   private Object mUFSConf = null;
+  private final UserConf USER_CONF = UserConf.get();
 
   /**
    * @param file
@@ -220,8 +225,8 @@ public class RemoteBlockInStream extends BlockInStream {
               CommonUtils.concat(mTachyonFS.getLocalDataFolder(), blockInfo.blockId);
           LOG.warn("Master thinks the local machine has data " + localFileName + "! But not!");
         }
-        LOG.info(host + ":" + port + " current host is "
-            + NetworkUtils.getLocalHostName() + " " + NetworkUtils.getLocalIpAddress());
+        LOG.info(host + ":" + port + " current host is " + NetworkUtils.getLocalHostName() + " "
+            + NetworkUtils.getLocalIpAddress());
 
         try {
           buf =
@@ -245,41 +250,61 @@ public class RemoteBlockInStream extends BlockInStream {
 
   private ByteBuffer retrieveByteBufferFromRemoteMachine(InetSocketAddress address, long blockId,
       long offset, long length) throws IOException {
-    SocketChannel socketChannel = SocketChannel.open();
-    try {
-      socketChannel.connect(address);
+    LOG.info("RemoteBlockInStream:retrieveByteBufferFromRemoteMachine " + address);
 
+    DataServerMessage recvMsg = DataServerMessage.createBlockResponseMessage(false, blockId);
+    if (USER_CONF.NETWORK_TYPE == NetworkType.RDMA) {
+      URI uri =
+          NetworkUtils.createRdmaUri(USER_CONF.NETWORK_TYPE, address.getHostName(),
+              address.getPort(), blockId, offset, length);
+      if (uri == null) {
+        return null;
+      }
+      JxioConnection jc = new JxioConnection(uri);
+      jc.setRcvSize(655360); // 10 buffers in msg pool
+      InputStream input = jc.getInputStream();
       LOG.info("Connected to remote machine " + address + " sent");
-      DataServerMessage sendMsg =
-          DataServerMessage.createBlockRequestMessage(blockId, offset, length);
-      while (!sendMsg.finishSending()) {
-        sendMsg.send(socketChannel);
-      }
 
-      LOG.info("Data " + blockId + " to remote machine " + address + " sent");
-
-      DataServerMessage recvMsg = DataServerMessage.createBlockResponseMessage(false, blockId);
-      while (!recvMsg.isMessageReady()) {
-        int numRead = recvMsg.recv(socketChannel);
-        if (numRead == -1) {
-          LOG.warn("Read nothing");
-        }
-      }
+      recvMsg.recv(input);
       LOG.info("Data " + blockId + " from remote machine " + address + " received");
 
-      if (!recvMsg.isMessageReady()) {
-        LOG.info("Data " + blockId + " from remote machine is not ready.");
-        return null;
-      }
+      jc.disconnect();
+    } else {
+      SocketChannel socketChannel = SocketChannel.open();
+      try {
+        socketChannel.connect(address);
 
-      if (recvMsg.getBlockId() < 0) {
-        LOG.info("Data " + recvMsg.getBlockId() + " is not in remote machine.");
-        return null;
+        LOG.info("Connected to remote machine " + address + " sent");
+        DataServerMessage sendMsg =
+            DataServerMessage.createBlockRequestMessage(blockId, offset, length);
+        while (!sendMsg.finishSending()) {
+          sendMsg.send(socketChannel);
+        }
+
+        LOG.info("Data " + blockId + " to remote machine " + address + " sent");
+
+        while (!recvMsg.isMessageReady()) {
+          int numRead = recvMsg.recv(socketChannel);
+          if (numRead == -1) {
+            LOG.warn("Read nothing");
+          }
+        }
+        LOG.info("Data " + blockId + " from remote machine " + address + " received");
+      } finally {
+        socketChannel.close();
       }
-      return recvMsg.getReadOnlyData();
-    } finally {
-      socketChannel.close();
     }
+    if (!recvMsg.isMessageReady()) {
+      LOG.info("Data " + blockId + " from remote machine is not ready.");
+      return null;
+    }
+
+    if (recvMsg.getBlockId() < 0) {
+      LOG.info("Data " + recvMsg.getBlockId() + " is not in remote machine.");
+      return null;
+    }
+    return recvMsg.getReadOnlyData();
+
   }
 
   @Override
@@ -321,8 +346,8 @@ public class RemoteBlockInStream extends BlockInStream {
           }
         }
       } catch (IOException e) {
-        LOG.error("Failed to read from checkpoint " + checkpointPath + " for File "
-            + mFile.mFileId, e);
+        LOG.error(
+            "Failed to read from checkpoint " + checkpointPath + " for File " + mFile.mFileId, e);
         mCheckpointInputStream = null;
       }
     }

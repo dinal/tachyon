@@ -1,8 +1,12 @@
 package tachyon.worker;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -15,14 +19,19 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import com.mellanox.jxio.jxioConnection.JxioConnection;
+
+import tachyon.NetworkType;
 import tachyon.TestUtils;
 import tachyon.client.TachyonFS;
 import tachyon.client.WriteType;
+import tachyon.conf.UserConf;
 import tachyon.master.LocalTachyonCluster;
 import tachyon.thrift.ClientBlockInfo;
 import tachyon.thrift.FileAlreadyExistException;
 import tachyon.thrift.InvalidPathException;
-import tachyon.worker.nio.DataServerMessage;
+import tachyon.util.NetworkUtils;
+import tachyon.worker.DataServerMessage;
 
 /**
  * Unit tests for tachyon.DataServer.

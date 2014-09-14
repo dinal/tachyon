@@ -1,6 +1,7 @@
-package tachyon.worker.nio;
+package tachyon.worker;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -9,6 +10,7 @@ import java.nio.channels.SocketChannel;
 import org.apache.log4j.Logger;
 
 import com.google.common.base.Preconditions;
+import com.mellanox.jxio.Msg;
 
 import tachyon.Constants;
 import tachyon.client.TachyonByteBuffer;
@@ -274,7 +276,7 @@ public class DataServerMessage {
    * 
    * @return The id of the block's locker
    */
-  int getLockId() {
+  public int getLockId() {
     return mLockId;
   }
 
@@ -366,6 +368,23 @@ public class DataServerMessage {
     return numRead;
   }
 
+  public int recv(InputStream input) throws IOException {
+    LOG.info("recv(IS)");
+    isSend(false);
+    int numRead = input.read(mHeader.array());
+    if (numRead == -1)
+      return numRead;
+    mHeader.position(numRead);
+
+    numRead = input.read(mData.array());
+    mData.position(numRead);
+    LOG.info("after read " + mData + " numRead:" + numRead);
+    if (mData.remaining() == 0) {
+      mIsMessageReady = true;
+    }
+    return numRead;
+  }
+
   /**
    * Send this message to the specified socket channel. Make sure this is a send message.
    * 
@@ -384,12 +403,40 @@ public class DataServerMessage {
   }
 
   /**
+   * copy message to buffer
+   * 
+   * @param buffer
+   *          The buffer to copy message into
+   */
+  public void copy(ByteBuffer buffer) {
+    isSend(true);
+    LOG.debug("copying " + buffer + " mHeader:" + mHeader + " mData:" + mData);
+    try {
+      buffer.put(mHeader);
+      if (mHeader.remaining() == 0) {
+        int remaining = buffer.remaining();
+        int lim = Math.min(mData.position() + remaining, mData.capacity());
+        mData.limit(lim);
+        buffer.put(mData.slice());
+        mData.position(lim);
+        mData.limit(mData.capacity());
+
+        // while (buffer.hasRemaining()) {
+        // buffer.put(mData.get());
+        // }
+      }
+    } catch (Exception e) {
+      LOG.error("ERROR " + e.getMessage() + e.getMessage());
+    }
+  }
+
+  /**
    * Set the id of the block's locker.
    * 
    * @param lockId
    *          The id of the block's locker
    */
-  void setLockId(int lockId) {
+  public void setLockId(int lockId) {
     mLockId = lockId;
   }
 }

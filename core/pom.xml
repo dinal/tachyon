@@ -135,6 +135,11 @@
       <artifactId>jackson-databind</artifactId>
       <version>2.3.0</version>
     </dependency>
+    <dependency>
+          <groupId>com.mellanox</groupId>
+                <artifactId>jxio</artifactId>
+                      <version>1.2</version>
+                          </dependency>
   </dependencies>
 
   <profiles>

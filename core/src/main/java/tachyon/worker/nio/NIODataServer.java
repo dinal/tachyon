@@ -21,6 +21,7 @@ import tachyon.Constants;
 import tachyon.conf.CommonConf;
 import tachyon.worker.BlocksLocker;
 import tachyon.worker.DataServer;
+import tachyon.worker.DataServerMessage;
 
 /**
  * The Server to serve data file read request from remote machines. The current implementation
@@ -125,12 +126,22 @@ public class NIODataServer implements Runnable, DataServer {
     } catch (IOException e) {
       // we wan't to throw the original IO issue, not the close issue, so don't throw
       // #close IOException.
-      Closeables.closeQuietly(socketSelector);
+      try {
+        socketSelector.close();
+      } catch (IOException ex) {
+        // ignore, we want the other exception
+        LOG.warn("Unable to close socket selector", ex);
+      }
       throw e;
     } catch (RuntimeException e) {
       // we wan't to throw the original IO issue, not the close issue, so don't throw
       // #close IOException.
-      Closeables.closeQuietly(socketSelector);
+      try {
+        socketSelector.close();
+      } catch (IOException ex) {
+        // ignore, we want the other exception
+        LOG.warn("Unable to close socket selector", ex);
+      }
       throw e;
     }
   }

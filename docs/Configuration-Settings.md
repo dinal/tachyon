@@ -174,7 +174,7 @@ number.
 <tr>
   <td>tachyon.worker.network.type</td>
   <td>NETTY</td>
-  <td>Selects networking stack to run the worker with.  Valid options are NETTY and NIO.</td>
+  <td>Selects networking stack to run the worker with.  Valid options are NETTY, NIO and RDMA.</td>
 </tr>
 <tr>
   <td>tachyon.worker.network.netty.channel</td>
@@ -245,9 +245,11 @@ The user configuration specifies values regarding file system access.
   <td>1 MB</td>
   <td>The size of the file buffer to read data from remote Tachyon worker.</td>
 </tr>
-<tr>
-  <td>tachyon.worker.network.netty.process.threads</td>
+<tr> <td>tachyon.worker.network.netty.process.threads</td>
   <td>16</td>
   <td>How many threads to use to process block requests.</td>
+  <td>tachyon.user.network.type</td>
+  <td>TCP</td>
+  <td>Network transport type. Valid options are TCP and RDMA</td>
 </tr>
 </table>
