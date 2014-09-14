@@ -15,7 +15,6 @@ import java.util.Map;
 import org.apache.log4j.Logger;
 
 import com.google.common.base.Throwables;
-import com.google.common.io.Closeables;
 
 import tachyon.Constants;
 import tachyon.conf.CommonConf;

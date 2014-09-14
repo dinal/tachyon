@@ -336,28 +336,7 @@ public class DataServerMessage {
     int numRead = 0;
     if (mHeader.remaining() > 0) {
       numRead = socketChannel.read(mHeader);
-      if (mHeader.remaining() == 0) {
-        mHeader.flip();
-        short msgType = mHeader.getShort();
-        assert (mMessageType == msgType);
-        mBlockId = mHeader.getLong();
-        mOffset = mHeader.getLong();
-        mLength = mHeader.getLong();
-        // TODO make this better to truncate the file.
-        assert mLength < Integer.MAX_VALUE;
-        if (mMessageType == DATA_SERVER_RESPONSE_MESSAGE) {
-          if (mLength == -1) {
-            mData = ByteBuffer.allocate(0);
-          } else {
-            mData = ByteBuffer.allocate((int) mLength);
-          }
-        }
-        LOG.info(String.format("data" + mData + ", blockId(%d), offset(%d), dataLength(%d)",
-            mBlockId, mOffset, mLength));
-        if (mMessageType == DATA_SERVER_REQUEST_MESSAGE || mLength <= 0) {
-          mIsMessageReady = true;
-        }
-      }
+      parseHeaderFields();
     } else {
       numRead = socketChannel.read(mData);
       if (mData.remaining() == 0) {
@@ -368,15 +347,41 @@ public class DataServerMessage {
     return numRead;
   }
 
+  private void parseHeaderFields() {
+    if (mHeader.remaining() == 0) {
+      mHeader.flip();
+      short msgType = mHeader.getShort();
+      assert (mMessageType == msgType);
+      mBlockId = mHeader.getLong();
+      mOffset = mHeader.getLong();
+      mLength = mHeader.getLong();
+      // TODO make this better to truncate the file.
+      assert mLength < Integer.MAX_VALUE;
+      if (mMessageType == DATA_SERVER_RESPONSE_MESSAGE) {
+        if (mLength == -1) {
+          mData = ByteBuffer.allocate(0);
+        } else {
+          mData = ByteBuffer.allocate((int) mLength);
+        }
+      }
+      LOG.info(String.format("data" + mData + ", blockId(%d), offset(%d), dataLength(%d)",
+          mBlockId, mOffset, mLength));
+      if (mMessageType == DATA_SERVER_REQUEST_MESSAGE || mLength <= 0) {
+        mIsMessageReady = true;
+      }
+    }
+  }
+
   public int recv(InputStream input) throws IOException {
-    LOG.info("recv(IS)");
     isSend(false);
     int numRead = input.read(mHeader.array());
     if (numRead == -1)
       return numRead;
     mHeader.position(numRead);
-
+    parseHeaderFields();
     numRead = input.read(mData.array());
+    if (numRead == -1)
+      return numRead;
     mData.position(numRead);
     LOG.info("after read " + mData + " numRead:" + numRead);
     if (mData.remaining() == 0) {
@@ -420,10 +425,6 @@ public class DataServerMessage {
         buffer.put(mData.slice());
         mData.position(lim);
         mData.limit(mData.capacity());
-
-        // while (buffer.hasRemaining()) {
-        // buffer.put(mData.get());
-        // }
       }
     } catch (Exception e) {
       LOG.error("ERROR " + e.getMessage() + e.getMessage());

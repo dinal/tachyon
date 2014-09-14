@@ -15,6 +15,7 @@ import org.apache.thrift.transport.TTransportException;
 import com.google.common.base.Throwables;
 
 import tachyon.Constants;
+import tachyon.NetworkType;
 import tachyon.Users;
 import tachyon.Version;
 import tachyon.conf.CommonConf;
@@ -194,6 +195,7 @@ public class TachyonWorker implements Runnable {
     // deployment more complicated.
     InetSocketAddress dataAddress = new InetSocketAddress(workerAddress.getHostName(), dataPort);
     BlocksLocker blockLocker = new BlocksLocker(mWorkerStorage, Users.sDATASERVER_USER_ID);
+    LOG.info("creating worker type "+WorkerConf.get().NETWORK_TYPE);
     mDataServer = createDataServer(dataAddress, blockLocker);
     mDataPort = mDataServer.getPort();
 
@@ -227,15 +229,11 @@ public class TachyonWorker implements Runnable {
     case NETTY:
       return new NettyDataServer(dataAddress, blockLocker);
     case RDMA:
-      URI uri;
-      try {
-        uri = new URI("rdma://" + dataAddress.getHostName() + ":" + dataAddress.getPort());
-      } catch (URISyntaxException e) {
-        LOG.error("could not resolve rdma data server uri");
-        throw Throwables.propagate(e);
-      }
-      return new RDMADataServer(uri, blockLocker);
-
+      return new RDMADataServer(constructRdmaServerUri(dataAddress.getHostName(),
+          dataAddress.getPort()), blockLocker);
+    case RDMA_TCP:
+      return new RDMADataServer(constructRdmaServerUri(dataAddress.getHostName(),
+          dataAddress.getPort()), blockLocker);
     default:
       throw new AssertionError("Unknown network type: " + WorkerConf.get().NETWORK_TYPE);
     }
@@ -357,4 +355,20 @@ public class TachyonWorker implements Runnable {
     }
     mHeartbeatThread.join();
   }
+  
+  private URI constructRdmaServerUri(String host, int port) {
+    URI uri;
+    try {
+      if (WorkerConf.get().NETWORK_TYPE == NetworkType.RDMA) {
+        uri = new URI("rdma://" + host + ":" + port);
+      } else {
+        uri = new URI("tcp://" + host + ":" + port);
+      }
+      return uri;
+    } catch (URISyntaxException e) {
+      LOG.error("could not resolve rdma data server uri, NetworkType is "+WorkerConf.get().NETWORK_TYPE);
+      throw Throwables.propagate(e);
+    }
+  }
+
 }

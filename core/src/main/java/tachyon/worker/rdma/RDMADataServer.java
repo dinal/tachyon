@@ -31,17 +31,18 @@ public class RDMADataServer implements Runnable, DataServer  {
   private final ServerPortal listener;
   private ArrayList<MsgPool> msgPools = new ArrayList<MsgPool>();
   private final int numMsgPoolBuffers = 500;
-  private URI uri;
+  private final Thread mListenerThread;
 
   public RDMADataServer(URI uri, BlocksLocker locker) {
     LOG.info("Starting RDMADataServer @ " + uri.toString());
     mBlocksLocker = locker;
-    this.uri = uri;
     MsgPool pool = new MsgPool(numMsgPoolBuffers, 0, 64 * 1024);
     msgPools.add(pool);
     eqh = new EventQueueHandler(new EqhCallbacks(numMsgPoolBuffers, 0, 64 * 1024));
     eqh.bindMsgPool(pool);
     listener = new ServerPortal(eqh, uri, new PortalServerCallbacks(), null);
+    mListenerThread  = new Thread(this);
+    mListenerThread.start();
   }
 
   /**
@@ -74,7 +75,7 @@ public class RDMADataServer implements Runnable, DataServer  {
       long blockId = Long.parseLong(params[0]);
       long offset = Long.parseLong(params[1].split("=")[1]);
       long length = Long.parseLong(params[2].split("=")[1]);
-      LOG.info("got request for block id " + blockId+" with offset "+offset+" and length "+length);
+      LOG.debug("got request for block id " + blockId+" with offset "+offset+" and length "+length);
       int lockId = mBlocksLocker.lock(blockId);
       responseMessage = DataServerMessage.createBlockResponseMessage(true, blockId, offset, length);
       responseMessage.setLockId(lockId);
@@ -99,13 +100,12 @@ public class RDMADataServer implements Runnable, DataServer  {
       }
 
       if (!session.getIsClosing() && responseMessage.finishSending()) {
-        LOG.info("finished reading, closing session");
         session.close();
       }
     }
 
     public void onSessionEvent(EventName session_event, EventReason reason) {
-      LOG.info("got event " + session_event.toString() + ", the reason is " + reason.toString());
+      LOG.debug("got event " + session_event.toString() + ", the reason is " + reason.toString());
       if (session_event == EventName.SESSION_CLOSED) {
         responseMessage.close();
         mBlocksLocker.unlock(Math.abs(responseMessage.getBlockId()), responseMessage.getLockId());
@@ -120,9 +120,7 @@ public class RDMADataServer implements Runnable, DataServer  {
 
   @Override
   public void run() {
-    LOG.info("Server Run");
     eqh.runEventLoop(-1, -1);
-    LOG.info("Server Run Ended");
   }
 
   @Override
@@ -158,6 +156,6 @@ public class RDMADataServer implements Runnable, DataServer  {
 
   @Override
   public int getPort() {
-    return uri.getPort();
+    return listener.getUri().getPort();
   }
 }

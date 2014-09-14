@@ -189,23 +189,28 @@ public final class NetworkUtils {
     }
   }
 
+  /**
+   * construct rdma server uri
+   * server can listen on rdma or tcp
+   * 
+   * @throws IOException
+   */
   public static URI createRdmaUri(NetworkType type, String address, int port, long blockId,
-      long offset, long length) {
+      long offset, long length) throws IOException {
     String uri;
     if (type == NetworkType.RDMA) {
       uri =
-          String.format("rdma://%s:%d/blockId=%d&offset=%d&length=%d", address, port, blockId, 0,
-              -1);
+          String.format("rdma://%s:%d/blockId=%d&offset=%d&length=%d", address, port, blockId,
+              offset, length);
     } else {
       uri =
-          String
-              .format("tcp://%s:%d/blockId=%d&offset=%d&length=%d", address, port, blockId, 0, -1);
+          String.format("tcp://%s:%d/blockId=%d&offset=%d&length=%d", address, port, blockId,
+              offset, length);
     }
     try {
       return new URI(uri);
     } catch (URISyntaxException e) {
-      LOG.error("rdma uri could not be resolved");
-      return null;
+      throw new IOException("rdma uri could not be resolved");
     }
   }
 }

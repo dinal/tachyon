@@ -21,6 +21,7 @@ import org.junit.runners.Parameterized;
 
 import com.mellanox.jxio.jxioConnection.JxioConnection;
 
+import tachyon.Constants;
 import tachyon.NetworkType;
 import tachyon.TestUtils;
 import tachyon.client.TachyonFS;
@@ -50,6 +51,7 @@ public class DataServerTest {
     }
     return list;
   }
+
   private final NetworkType mType;
   private LocalTachyonCluster mLocalTachyonCluster = null;
 
@@ -64,6 +66,7 @@ public class DataServerTest {
     mLocalTachyonCluster.stop();
     System.clearProperty("tachyon.user.quota.unit.bytes");
     System.clearProperty("tachyon.worker.network.type");
+    System.clearProperty("tachyon.user.network.type");
   }
 
   /**
@@ -87,8 +90,8 @@ public class DataServerTest {
   /**
    * Asserts that the message back matches the block response protocols.
    */
-  private void assertValid(final DataServerMessage msg, final int expectedSize,
-      final long blockId, final long offset, final long length) {
+  private void assertValid(final DataServerMessage msg, final int expectedSize, final long blockId,
+      final long offset, final long length) {
     assertValid(msg, TestUtils.getIncreasingByteBuffer(expectedSize), blockId, offset, length);
   }
 
@@ -96,6 +99,7 @@ public class DataServerTest {
   public final void before() throws IOException {
     System.setProperty("tachyon.user.quota.unit.bytes", USER_QUOTA_UNIT_BYTES + "");
     System.setProperty("tachyon.worker.network.type", mType.toString());
+    System.setProperty("tachyon.user.network.type", mType.toString());
     mLocalTachyonCluster = new LocalTachyonCluster(WORKER_CAPACITY_BYTES);
     mLocalTachyonCluster.start();
     mTFS = mLocalTachyonCluster.getClient();
@@ -132,7 +136,7 @@ public class DataServerTest {
 
   @Test
   public void readPartialTest1() throws InvalidPathException, FileAlreadyExistException,
-  IOException {
+      IOException {
     int fileId = TestUtils.createByteFile(mTFS, "/testFile", WriteType.MUST_CACHE, 10);
     ClientBlockInfo block = mTFS.getFileBlocks(fileId).get(0);
     final int offset = 0;
@@ -143,7 +147,7 @@ public class DataServerTest {
 
   @Test
   public void readPartialTest2() throws InvalidPathException, FileAlreadyExistException,
-  IOException {
+      IOException {
     int fileId = TestUtils.createByteFile(mTFS, "/testFile", WriteType.MUST_CACHE, 10);
     ClientBlockInfo block = mTFS.getFileBlocks(fileId).get(0);
     final int offset = 2;
@@ -172,39 +176,54 @@ public class DataServerTest {
   }
 
   /**
-   * Requests a block from the server.  This call will read the full block.
+   * Requests a block from the server. This call will read the full block.
    */
   private DataServerMessage request(final ClientBlockInfo block) throws IOException {
     return request(block, 0, -1);
   }
 
   /**
-   * Create a new socket to the data port and send a block request.  The returned value is
+   * Create a new socket to the data port and send a block request. The returned value is
    * the response from the server.
    */
   private DataServerMessage request(final ClientBlockInfo block, final long offset,
       final long length) throws IOException {
-    DataServerMessage sendMsg =
-        DataServerMessage.createBlockRequestMessage(block.blockId, offset, length);
-    SocketChannel socketChannel =
-        SocketChannel.open(new InetSocketAddress(block.getLocations().get(0).mHost, block
-            .getLocations().get(0).mSecondaryPort));
-    try {
-      while (!sendMsg.finishSending()) {
-        sendMsg.send(socketChannel);
+    DataServerMessage recvMsg =
+        DataServerMessage.createBlockResponseMessage(false, block.blockId, offset, length);
+
+    if (NetworkType.isRdma(mType)) {
+      URI uri =
+          NetworkUtils.createRdmaUri(mType, block.getLocations().get(0).mHost, block.getLocations()
+              .get(0).mSecondaryPort, block.blockId, offset, length);
+      JxioConnection jc = new JxioConnection(uri);
+      try {
+        InputStream input = jc.getInputStream();
+        recvMsg.recv(input);
+      } finally {
+        jc.disconnect();
       }
-      DataServerMessage recvMsg =
-          DataServerMessage.createBlockResponseMessage(false, block.blockId, offset, length);
-      while (!recvMsg.isMessageReady()) {
-        int numRead = recvMsg.recv(socketChannel);
-        if (numRead == -1) {
-          break;
+    } else {
+      DataServerMessage sendMsg =
+          DataServerMessage.createBlockRequestMessage(block.blockId, offset, length);
+      SocketChannel socketChannel =
+          SocketChannel.open(new InetSocketAddress(block.getLocations().get(0).mHost, block
+              .getLocations().get(0).mSecondaryPort));
+      try {
+        while (!sendMsg.finishSending()) {
+          sendMsg.send(socketChannel);
         }
+
+        while (!recvMsg.isMessageReady()) {
+          int numRead = recvMsg.recv(socketChannel);
+          if (numRead == -1) {
+            break;
+          }
+        }
+      } finally {
+        socketChannel.close();
       }
-      return recvMsg;
-    } finally {
-      socketChannel.close();
     }
+    return recvMsg;
   }
 
   @Test

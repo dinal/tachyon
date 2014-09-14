@@ -5,32 +5,25 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
-import java.net.ConnectException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.log4j.Logger;
 
-import com.mellanox.jxio.jxioConnection.JxioConnection;
-
 import tachyon.Constants;
 import tachyon.TachyonURI;
 import tachyon.NetworkType;
 import tachyon.UnderFileSystem;
+import tachyon.client.rdma.RDMABlockReader;
+import tachyon.client.tcp.TCPBlockReader;
 import tachyon.conf.UserConf;
 import tachyon.thrift.ClientBlockInfo;
 import tachyon.thrift.ClientFileInfo;
 import tachyon.thrift.NetAddress;
 import tachyon.util.CommonUtils;
 import tachyon.util.NetworkUtils;
-import tachyon.worker.DataServerMessage;
 
 /**
  * Tachyon File.
@@ -94,7 +87,7 @@ public class TachyonFile implements Comparable<TachyonFile> {
    * @throws IOException
    */
   long getBlockIdBasedOnOffset(long offset) throws IOException {
-    int index = (int) (offset / mTachyonFS.getFileStatus(mFileId, "", true).getBlockSizeByte());
+    int index = (int) (offset / mTachyonFS.getFileStatus(mFileId, true).getBlockSizeByte());
 
     return mTachyonFS.getBlockId(mFileId, index);
   }
@@ -106,7 +99,7 @@ public class TachyonFile implements Comparable<TachyonFile> {
    * @throws IOException
    */
   public long getBlockSizeByte() throws IOException {
-    return mTachyonFS.getFileStatus(mFileId, "", true).getBlockSizeByte();
+    return mTachyonFS.getFileStatus(mFileId, true).getBlockSizeByte();
   }
 
   /**
@@ -128,7 +121,7 @@ public class TachyonFile implements Comparable<TachyonFile> {
    * @throws IOException
    */
   public long getCreationTimeMs() throws IOException {
-    return mTachyonFS.getFileStatus(mFileId, "", true).getCreationTimeMs();
+    return mTachyonFS.getFileStatus(mFileId, true).getCreationTimeMs();
   }
 
   public int getDiskReplication() {
@@ -155,7 +148,7 @@ public class TachyonFile implements Comparable<TachyonFile> {
       throw new IOException("The file " + this + " is not complete.");
     }
 
-    List<Long> blocks = mTachyonFS.getFileStatus(mFileId, "", false).getBlockIds();
+    List<Long> blocks = mTachyonFS.getFileStatus(mFileId, false).getBlockIds();
 
     if (blocks.size() == 0) {
       return new EmptyBlockInStream(this, readType);
@@ -217,7 +210,7 @@ public class TachyonFile implements Comparable<TachyonFile> {
    * @throws IOException
    */
   public int getNumberOfBlocks() throws IOException {
-    return mTachyonFS.getFileStatus(mFileId, "", false).getBlockIds().size();
+    return mTachyonFS.getFileStatus(mFileId, false).getBlockIds().size();
   }
 
   /**
@@ -247,7 +240,7 @@ public class TachyonFile implements Comparable<TachyonFile> {
    * @throws IOException
    */
   public String getPath() throws IOException {
-    return mTachyonFS.getFileStatus(mFileId, "", false).getPath();
+    return mTachyonFS.getFileStatus(mFileId, false).getPath();
   }
 
   /**
@@ -266,13 +259,13 @@ public class TachyonFile implements Comparable<TachyonFile> {
    * @throws IOException
    */
   String getUfsPath() throws IOException {
-    ClientFileInfo info = mTachyonFS.getFileStatus(mFileId, "", true);
+    ClientFileInfo info = mTachyonFS.getFileStatus(mFileId, true);
 
     if (!info.getUfsPath().isEmpty()) {
       return info.getUfsPath();
     }
 
-    return mTachyonFS.getFileStatus(mFileId, "", false).getUfsPath();
+    return mTachyonFS.getFileStatus(mFileId, false).getUfsPath();
   }
 
   @Override
@@ -287,9 +280,9 @@ public class TachyonFile implements Comparable<TachyonFile> {
    * @throws IOException
    */
   public boolean isComplete() throws IOException {
-    ClientFileInfo info = mTachyonFS.getFileStatus(mFileId, "", true);
+    ClientFileInfo info = mTachyonFS.getFileStatus(mFileId, true);
 
-    return info.isComplete ? true : mTachyonFS.getFileStatus(mFileId, "", false).isComplete;
+    return info.isComplete || mTachyonFS.getFileStatus(mFileId, false).isComplete;
   }
 
   /**
@@ -297,7 +290,7 @@ public class TachyonFile implements Comparable<TachyonFile> {
    * @throws IOException
    */
   public boolean isDirectory() throws IOException {
-    return mTachyonFS.getFileStatus(mFileId, "", true).isFolder;
+    return mTachyonFS.getFileStatus(mFileId, true).isFolder;
   }
 
   /**
@@ -316,7 +309,7 @@ public class TachyonFile implements Comparable<TachyonFile> {
    * @throws IOException
    */
   public boolean isInMemory() throws IOException {
-    return mTachyonFS.getFileStatus(mFileId, "", false).getInMemoryPercentage() == 100;
+    return mTachyonFS.getFileStatus(mFileId, false).getInMemoryPercentage() == 100;
   }
 
   /**
@@ -324,7 +317,7 @@ public class TachyonFile implements Comparable<TachyonFile> {
    * @throws IOException
    */
   public long length() throws IOException {
-    return mTachyonFS.getFileStatus(mFileId, "", false).getLength();
+    return mTachyonFS.getFileStatus(mFileId, false).getLength();
   }
 
   /**
@@ -332,7 +325,7 @@ public class TachyonFile implements Comparable<TachyonFile> {
    * @throws IOException
    */
   public boolean needPin() throws IOException {
-    return mTachyonFS.getFileStatus(mFileId, "", false).isPinned;
+    return mTachyonFS.getFileStatus(mFileId, false).isPinned;
   }
 
   /**
@@ -473,7 +466,7 @@ public class TachyonFile implements Comparable<TachyonFile> {
         LOG.info(host + ":" + port + " current host is " + hostname + " " + hostaddress);
 
         try {
-          buf = retrieveRemoteByteBuffer(new InetSocketAddress(host, port), blockInfo.blockId);
+          buf = retrieveRemoteByteBuffer(host, port, blockInfo.blockId);
           if (buf != null) {
             break;
           }
@@ -587,62 +580,20 @@ public class TachyonFile implements Comparable<TachyonFile> {
     return mTachyonFS.rename(mFileId, path);
   }
 
-  private ByteBuffer retrieveRemoteByteBuffer(InetSocketAddress address, long blockId) throws IOException {
-    DataServerMessage recvMsg = DataServerMessage.createBlockResponseMessage(false, blockId);
-    LOG.info("TachyonFile:retrieveByteBufferFromRemoteMachine");
-    if (USER_CONF.NETWORK_TYPE == NetworkType.RDMA) {
-      URI uri =
-          NetworkUtils.createRdmaUri(USER_CONF.NETWORK_TYPE, address.getHostName(),
-              address.getPort(), blockId, 0, -1);
-      if (uri == null) {
-        return null;
-      }
-      JxioConnection jc = new JxioConnection(uri);
-      jc.setRcvSize(655360); // 10 buffers in msg pool
-      InputStream input = jc.getInputStream();
-      LOG.info("Connected to remote machine " + address + " sent");
-
-      recvMsg.recv(input);
-      LOG.info("Data " + blockId + " from remote machine " + address + " received");
-
-      jc.disconnect();
+  private ByteBuffer retrieveRemoteByteBuffer(String host, int port, long blockId)
+      throws IOException {
+    RemoteBlockReader reader;
+    if (NetworkType.isRdma(USER_CONF.NETWORK_TYPE)) {
+      reader = new RDMABlockReader();
     } else {
-      SocketChannel socketChannel = SocketChannel.open();
-      try {
-        socketChannel.connect(address);
-
-        LOG.info("Connected to remote machine " + address + " sent");
-        DataServerMessage sendMsg = DataServerMessage.createBlockRequestMessage(blockId);
-        while (!sendMsg.finishSending()) {
-          sendMsg.send(socketChannel);
-        }
-
-        LOG.info("Data " + blockId + " to remote machine " + address + " sent");
-
-        while (!recvMsg.isMessageReady()) {
-          int numRead = recvMsg.recv(socketChannel);
-          if (numRead == -1) {
-            break;
-          }
-        }
-
-        LOG.info("Data " + blockId + " from remote machine " + address + " received");
-
-      } finally {
-        socketChannel.close();
-      }
-      if (!recvMsg.isMessageReady()) {
-        LOG.info("Data " + blockId + " from remote machine is not ready.");
-        return null;
-      }
-
-      if (recvMsg.getBlockId() < 0) {
-        LOG.info("Data " + recvMsg.getBlockId() + " is not in remote machine.");
-        return null;
-      }
+      reader = new TCPBlockReader();
     }
-
-    return recvMsg.getReadOnlyData();
+    try {
+      return reader.readRemoteBlock(host, port, blockId, 0, -1);
+    } catch (IOException e) {
+      LOG.error("got exception reading remote block: " + e.toString());
+      return null;
+    }
   }
 
   /**

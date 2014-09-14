@@ -1,18 +1,25 @@
 package tachyon.client;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+import tachyon.NetworkType;
 import tachyon.TestUtils;
 import tachyon.master.LocalTachyonCluster;
 
 /**
  * Unit tests for <code>tachyon.client.RemoteBlockInStream</code>.
  */
+@RunWith(Parameterized.class)
 public class RemoteBlockInStreamTest {
   private static final int MIN_LEN = 0;
   private static final int MAX_LEN = 255;
@@ -20,18 +27,37 @@ public class RemoteBlockInStreamTest {
 
   private LocalTachyonCluster mLocalTachyonCluster = null;
   private TachyonFS mTfs = null;
+  private final NetworkType mType;
+  
+  @Parameterized.Parameters
+  public static Collection<Object[]> data() {
+    // creates a new instance of RemoteBlockInStreamTest for each network type
+    List<Object[]> list = new ArrayList<Object[]>();
+    for (final NetworkType type : NetworkType.values()) {
+      list.add(new Object[] { type });
+    }
+    return list;
+  }
 
+  public RemoteBlockInStreamTest(NetworkType type) {
+    mType = type;
+  }
+  
   @After
   public final void after() throws Exception {
     mLocalTachyonCluster.stop();
     System.clearProperty("tachyon.user.quota.unit.bytes");
     System.clearProperty("tachyon.user.remote.read.buffer.size.byte");
+    System.clearProperty("tachyon.user.network.type");
+    System.clearProperty("tachyon.worker.network.type");
   }
 
   @Before
   public final void before() throws IOException {
     System.setProperty("tachyon.user.quota.unit.bytes", "1000");
     System.setProperty("tachyon.user.remote.read.buffer.size.byte", "100");
+    System.setProperty("tachyon.user.network.type", mType.toString());
+    System.setProperty("tachyon.worker.network.type", mType.toString());
     mLocalTachyonCluster = new LocalTachyonCluster(10000);
     mLocalTachyonCluster.start();
     mTfs = mLocalTachyonCluster.getClient();
