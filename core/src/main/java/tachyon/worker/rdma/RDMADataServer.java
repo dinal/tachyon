@@ -126,7 +126,8 @@ public class RDMADataServer implements Runnable, DataServer  {
   @Override
   public void close() {
     LOG.info(this.toString() + " closing server");
-    listener.close();
+    eqh.stop();
+    eqh.close();
   }
 
   @Override
