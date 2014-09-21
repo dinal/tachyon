@@ -251,7 +251,7 @@ public class RemoteBlockInStream extends BlockInStream {
       reader = new TCPBlockReader();
     }
     try {
-      return reader.readRemoteBlock(host, port, blockId, 0, -1);
+      return reader.readRemoteBlock(host, port, blockId, offset, length);
     } catch (IOException e) {
       LOG.error("got exception reading remote block: " + e.toString());
       return null;
