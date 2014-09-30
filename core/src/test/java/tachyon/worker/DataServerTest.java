@@ -136,7 +136,7 @@ public class DataServerTest {
 
   @Test
   public void readPartialTest1() throws InvalidPathException, FileAlreadyExistException,
-      IOException {
+  IOException {
     int fileId = TestUtils.createByteFile(mTFS, "/testFile", WriteType.MUST_CACHE, 10);
     ClientBlockInfo block = mTFS.getFileBlocks(fileId).get(0);
     final int offset = 0;
@@ -147,7 +147,7 @@ public class DataServerTest {
 
   @Test
   public void readPartialTest2() throws InvalidPathException, FileAlreadyExistException,
-      IOException {
+  IOException {
     int fileId = TestUtils.createByteFile(mTFS, "/testFile", WriteType.MUST_CACHE, 10);
     ClientBlockInfo block = mTFS.getFileBlocks(fileId).get(0);
     final int offset = 2;
