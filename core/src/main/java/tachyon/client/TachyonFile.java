@@ -366,7 +366,7 @@ public class TachyonFile implements Comparable<TachyonFile> {
 
   /**
    * Read local block return a TachyonByteBuffer
-   * 
+   *
    * @param blockIndex
    *          The id of the block.
    * @param offset
