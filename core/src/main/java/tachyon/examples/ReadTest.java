@@ -1,9 +1,6 @@
 package tachyon.examples;
 
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 
 import org.apache.log4j.Logger;
 import tachyon.Constants;
@@ -104,7 +101,11 @@ public class ReadTest {
         System.out.println("Finished reading file " + files[i] + " time " + time + " \n");
       }
     } catch (Exception e) {
-      LOG.error("got Exception is test " + e.toString());
+      LOG.error("got Exception in test " + e.toString());
+      StackTraceElement[] stackTraceElements = e.getStackTrace();
+      for (StackTraceElement stackTrace : stackTraceElements) {
+        LOG.error("\t" + stackTrace.toString());
+      }
     }
   }
 }
