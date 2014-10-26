@@ -3,6 +3,9 @@ package tachyon.examples;
 import java.io.IOException;
 
 import org.apache.log4j.Logger;
+
+import com.mellanox.jxio.jxioConnection.impl.JxioResourceManager;
+
 import tachyon.Constants;
 import tachyon.Version;
 import tachyon.client.InStream;
@@ -46,7 +49,7 @@ public class ReadTest {
       createFiles();
       writeFiles();
     }
-
+    JxioResourceManager.cleanCache();
     System.exit(0);
   }
 

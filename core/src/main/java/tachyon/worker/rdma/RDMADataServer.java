@@ -16,6 +16,7 @@ import com.mellanox.jxio.ServerSession.SessionKey;
 import com.mellanox.jxio.WorkerCache.Worker;
 import com.mellanox.jxio.exceptions.JxioGeneralException;
 import com.mellanox.jxio.exceptions.JxioSessionClosedException;
+import com.mellanox.jxio.jxioConnection.impl.JxioResourceManager;
 
 import tachyon.Constants;
 import tachyon.worker.BlocksLocker;
@@ -121,13 +122,18 @@ public class RDMADataServer implements Runnable, DataServer  {
   @Override
   public void run() {
     eqh.runEventLoop(-1, -1);
+    eqh.stop();
+    eqh.close();
+    for (MsgPool mp : msgPools) {
+      mp.deleteMsgPool();
+    }
+    msgPools.clear();
+    JxioResourceManager.cleanCache();
   }
 
   @Override
   public void close() {
-    LOG.info(this.toString() + " closing server");
-    eqh.stop();
-    eqh.close();
+    eqh.breakEventLoop();
   }
 
   @Override
