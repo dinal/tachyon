@@ -109,6 +109,7 @@ public class ReadTest {
       for (StackTraceElement stackTrace : stackTraceElements) {
         LOG.error("\t" + stackTrace.toString());
       }
+      System.exit(1);
     }
   }
 }
