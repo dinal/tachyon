@@ -1,5 +1,7 @@
 package tachyon;
 
+import com.mellanox.jxio.jxioConnection.JxioConnectionConstants;
+
 /**
  * System wide constants
  */
@@ -54,4 +56,10 @@ public class Constants {
    * Version 3 [0.6.0] Add lastModificationTimeMs to inode.
    */
   public static final int JOURNAL_VERSION = 2;
+  
+  /** jxio related **/
+  public static final int CLIENT_BUF_COUNT = 10;
+  public static final int CLIENT_MSGPOOL_SIZE = JxioConnectionConstants.MSGPOOL_BUF_SIZE * CLIENT_BUF_COUNT;
+  public static final int SERVER_INITIAL_BUF_COUNT = 500;
+  public static final int SERVER_INC_BUF_COUNT = 50;
 }

@@ -136,7 +136,7 @@ public class DataServerTest {
 
   @Test
   public void readPartialTest1() throws InvalidPathException, FileAlreadyExistException,
-  IOException {
+      IOException {
     int fileId = TestUtils.createByteFile(mTFS, "/testFile", WriteType.MUST_CACHE, 10);
     ClientBlockInfo block = mTFS.getFileBlocks(fileId).get(0);
     final int offset = 0;
@@ -147,7 +147,7 @@ public class DataServerTest {
 
   @Test
   public void readPartialTest2() throws InvalidPathException, FileAlreadyExistException,
-  IOException {
+      IOException {
     int fileId = TestUtils.createByteFile(mTFS, "/testFile", WriteType.MUST_CACHE, 10);
     ClientBlockInfo block = mTFS.getFileBlocks(fileId).get(0);
     final int offset = 2;
@@ -191,16 +191,21 @@ public class DataServerTest {
     DataServerMessage recvMsg =
         DataServerMessage.createBlockResponseMessage(false, block.blockId, offset, length);
 
-    if (NetworkType.isRdma(mType)) {
-      URI uri =
-          NetworkUtils.createRdmaUri(mType, block.getLocations().get(0).mHost, block.getLocations()
-              .get(0).mSecondaryPort, block.blockId, offset, length);
-      JxioConnection jc = new JxioConnection(uri);
+    if (mType == NetworkType.RDMA) {
       try {
-        InputStream input = jc.getInputStream();
-        recvMsg.recv(input);
-      } finally {
-        jc.disconnect();
+        URI uri =
+            new URI(String.format("rdma://%s:%d/blockId=%d&offset=%d&length=%d", block
+                .getLocations().get(0).mHost, block.getLocations().get(0).mSecondaryPort,
+                block.blockId, offset, length));
+        JxioConnection jc = new JxioConnection(uri);
+        try {
+          InputStream input = jc.getInputStream();
+          recvMsg.recv(input);
+        } finally {
+          jc.disconnect();
+        }
+      } catch (URISyntaxException e) {
+        throw new IOException("rdma uri could not be resolved");
       }
     } else {
       DataServerMessage sendMsg =

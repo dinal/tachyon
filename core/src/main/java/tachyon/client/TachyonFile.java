@@ -583,7 +583,7 @@ public class TachyonFile implements Comparable<TachyonFile> {
   private ByteBuffer retrieveRemoteByteBuffer(String host, int port, long blockId)
       throws IOException {
     RemoteBlockReader reader;
-    if (NetworkType.isRdma(USER_CONF.NETWORK_TYPE)) {
+    if (USER_CONF.NETWORK_TYPE == NetworkType.RDMA) {
       reader = new RDMABlockReader();
     } else {
       reader = new TCPBlockReader();

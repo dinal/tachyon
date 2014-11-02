@@ -246,7 +246,7 @@ public class RemoteBlockInStream extends BlockInStream {
       long length) throws IOException {
     RemoteBlockReader reader;
     LOG.info("Going to read remote buffer, network type:"+USER_CONF.NETWORK_TYPE);
-    if (NetworkType.isRdma(USER_CONF.NETWORK_TYPE)) {
+    if (USER_CONF.NETWORK_TYPE == NetworkType.RDMA) {
       reader = new RDMABlockReader();
     } else {
       reader = new TCPBlockReader();

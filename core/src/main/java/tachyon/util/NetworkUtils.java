@@ -7,8 +7,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
 import java.net.ServerSocket;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.util.Enumeration;
 
@@ -19,7 +17,6 @@ import com.google.common.base.Throwables;
 
 import tachyon.Constants;
 import tachyon.thrift.NetAddress;
-import tachyon.NetworkType;
 
 /**
  * Common network utilities shared by all components in Tachyon.
@@ -186,31 +183,6 @@ public final class NetworkUtils {
       throw Throwables.propagate(e);
     } catch (IllegalAccessException e) {
       throw Throwables.propagate(e);
-    }
-  }
-
-  /**
-   * construct rdma server uri
-   * server can listen on rdma or tcp
-   * 
-   * @throws IOException
-   */
-  public static URI createRdmaUri(NetworkType type, String address, int port, long blockId,
-      long offset, long length) throws IOException {
-    String uri;
-    if (type == NetworkType.RDMA) {
-      uri =
-          String.format("rdma://%s:%d/blockId=%d&offset=%d&length=%d", address, port, blockId,
-              offset, length);
-    } else {
-      uri =
-          String.format("tcp://%s:%d/blockId=%d&offset=%d&length=%d", address, port, blockId,
-              offset, length);
-    }
-    try {
-      return new URI(uri);
-    } catch (URISyntaxException e) {
-      throw new IOException("rdma uri could not be resolved");
     }
   }
 }

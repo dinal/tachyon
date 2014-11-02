@@ -229,11 +229,7 @@ public class TachyonWorker implements Runnable {
       case NETTY:
         return new NettyDataServer(dataAddress, blockLocker);
       case RDMA:
-        return new RDMADataServer(constructRdmaServerUri(dataAddress.getHostName(),
-            dataAddress.getPort()), blockLocker);
-      case RDMA_TCP:
-        return new RDMADataServer(constructRdmaServerUri(dataAddress.getHostName(),
-            dataAddress.getPort()), blockLocker);
+        return new RDMADataServer(dataAddress, blockLocker);
       default:
         throw new AssertionError("Unknown network type: " + WorkerConf.get().NETWORK_TYPE);
     }
@@ -355,20 +351,4 @@ public class TachyonWorker implements Runnable {
     }
     mHeartbeatThread.join();
   }
-  
-  private URI constructRdmaServerUri(String host, int port) {
-    URI uri;
-    try {
-      if (WorkerConf.get().NETWORK_TYPE == NetworkType.RDMA) {
-        uri = new URI("rdma://" + host + ":" + port);
-      } else {
-        uri = new URI("tcp://" + host + ":" + port);
-      }
-      return uri;
-    } catch (URISyntaxException e) {
-      LOG.error("could not resolve rdma data server uri, NetworkType is "+WorkerConf.get().NETWORK_TYPE);
-      throw Throwables.propagate(e);
-    }
-  }
-
 }

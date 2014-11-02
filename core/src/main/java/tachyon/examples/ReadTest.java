@@ -49,7 +49,7 @@ public class ReadTest {
       createFiles();
       writeFiles();
     }
-    JxioResourceManager.cleanCache();
+    sTachyonClient.close();
     System.exit(0);
   }
 

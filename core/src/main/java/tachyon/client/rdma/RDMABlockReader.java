@@ -21,36 +21,40 @@ public class RDMABlockReader implements RemoteBlockReader {
 
   private static final Logger LOG = Logger.getLogger(Constants.LOGGER_TYPE);
   private final UserConf USER_CONF = UserConf.get();
+  private final String uriFormat = "rdma://%s:%d/blockId=%d&offset=%d&length=%d";
 
   @Override
   public ByteBuffer readRemoteBlock(String host, int port, long blockId, long offset, long length)
       throws IOException {
-    URI uri =
-        NetworkUtils.createRdmaUri(USER_CONF.NETWORK_TYPE, host, port, blockId, offset, length);
-    JxioConnection jc = new JxioConnection(uri);
     try {
-      jc.setRcvSize(655360); // 10 buffers in msg pool
-      InputStream input = jc.getInputStream();
-      LOG.info("Connected to remote machine " + uri);
+      URI uri = new URI(String.format(uriFormat, host, port, blockId, offset, length));
+      JxioConnection jc = new JxioConnection(uri);
+      try {
+        jc.setRcvSize(655360); // 10 buffers in msg pool
+        InputStream input = jc.getInputStream();
+        LOG.info("Connected to remote machine " + uri);
 
-      DataServerMessage recvMsg = DataServerMessage.createBlockResponseMessage(false, blockId);
-      recvMsg.recv(input);
-      LOG.info("Data " + blockId + " from remote machine " + host + ":" + port + " received");
+        DataServerMessage recvMsg = DataServerMessage.createBlockResponseMessage(false, blockId);
+        recvMsg.recv(input);
+        LOG.info("Data " + blockId + " from remote machine " + host + ":" + port + " received");
 
-      if (!recvMsg.isMessageReady()) {
-        LOG.info("Data " + blockId + " from remote machine is not ready.");
-        return null;
+        if (!recvMsg.isMessageReady()) {
+          LOG.info("Data " + blockId + " from remote machine is not ready.");
+          return null;
+        }
+
+        if (recvMsg.getBlockId() < 0) {
+          LOG.info("Data " + recvMsg.getBlockId() + " is not in remote machine.");
+          return null;
+        }
+
+        return recvMsg.getReadOnlyData();
+
+      } finally {
+        jc.disconnect();
       }
-
-      if (recvMsg.getBlockId() < 0) {
-        LOG.info("Data " + recvMsg.getBlockId() + " is not in remote machine.");
-        return null;
-      }
-
-      return recvMsg.getReadOnlyData();
-
-    } finally {
-      jc.disconnect();
+    } catch (URISyntaxException e) {
+      throw new IOException("rdma uri could not be resolved");
     }
   }
 }

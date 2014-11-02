@@ -1,8 +1,10 @@
 package tachyon.worker.rdma;
 
+import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
-
+import com.google.common.base.Throwables;
 import org.apache.log4j.Logger;
 
 import com.mellanox.jxio.EventName;
@@ -16,9 +18,12 @@ import com.mellanox.jxio.ServerSession.SessionKey;
 import com.mellanox.jxio.WorkerCache.Worker;
 import com.mellanox.jxio.exceptions.JxioGeneralException;
 import com.mellanox.jxio.exceptions.JxioSessionClosedException;
+import com.mellanox.jxio.jxioConnection.JxioConnectionConstants;
 import com.mellanox.jxio.jxioConnection.impl.JxioResourceManager;
 
 import tachyon.Constants;
+import tachyon.NetworkType;
+import tachyon.conf.WorkerConf;
 import tachyon.worker.BlocksLocker;
 import tachyon.worker.DataServer;
 import tachyon.worker.DataServerMessage;
@@ -31,15 +36,15 @@ public class RDMADataServer implements Runnable, DataServer  {
   private final EventQueueHandler eqh;
   private final ServerPortal listener;
   private ArrayList<MsgPool> msgPools = new ArrayList<MsgPool>();
-  private final int numMsgPoolBuffers = 500;
   private final Thread mListenerThread;
 
-  public RDMADataServer(URI uri, BlocksLocker locker) {
-    LOG.info("Starting RDMADataServer @ " + uri.toString());
+  public RDMADataServer(InetSocketAddress address, BlocksLocker locker) {
+    LOG.info("Starting RDMADataServer @ " + address.toString());
+    URI uri = constructRdmaServerUri(address.getHostName(), address.getPort());
     mBlocksLocker = locker;
-    MsgPool pool = new MsgPool(numMsgPoolBuffers, 0, 64 * 1024);
+    MsgPool pool = new MsgPool(Constants.SERVER_INITIAL_BUF_COUNT, 0, JxioConnectionConstants.MSGPOOL_BUF_SIZE);
     msgPools.add(pool);
-    eqh = new EventQueueHandler(new EqhCallbacks(numMsgPoolBuffers, 0, 64 * 1024));
+    eqh = new EventQueueHandler(new EqhCallbacks(Constants.SERVER_INC_BUF_COUNT, 0, JxioConnectionConstants.MSGPOOL_BUF_SIZE));
     eqh.bindMsgPool(pool);
     listener = new ServerPortal(eqh, uri, new PortalServerCallbacks(), null);
     mListenerThread  = new Thread(this);
@@ -52,7 +57,7 @@ public class RDMADataServer implements Runnable, DataServer  {
   public class PortalServerCallbacks implements ServerPortal.Callbacks {
 
     public void onSessionEvent(EventName session_event, EventReason reason) {
-      LOG.info("got event " + session_event.toString() + "because of " + reason.toString());
+      LOG.debug("got event " + session_event.toString() + "because of " + reason.toString());
       if (session_event == EventName.PORTAL_CLOSED) {
         eqh.breakEventLoop();
       }
@@ -95,8 +100,10 @@ public class RDMADataServer implements Runnable, DataServer  {
           session.sendResponse(m);
         } catch (JxioGeneralException e) {
           LOG.error("Exception accured while sending messgae "+e.toString());
+          session.discardRequest(m);
         } catch (JxioSessionClosedException e) {
           LOG.error("session was closed unexpectedly "+e.toString());
+          session.discardRequest(m);
         }
       }
 
@@ -121,18 +128,21 @@ public class RDMADataServer implements Runnable, DataServer  {
 
   @Override
   public void run() {
-    eqh.runEventLoop(-1, -1);
+    int ret = eqh.runEventLoop(-1, -1);
+    if (ret == -1) {
+      LOG.error(this.toString()+" exception occurred in eventLoop:"+eqh.getCaughtException());
+    }
     eqh.stop();
     eqh.close();
     for (MsgPool mp : msgPools) {
       mp.deleteMsgPool();
     }
     msgPools.clear();
-    JxioResourceManager.cleanCache();
   }
 
   @Override
   public void close() {
+    LOG.info("closing server");
     eqh.breakEventLoop();
   }
 
@@ -164,5 +174,20 @@ public class RDMADataServer implements Runnable, DataServer  {
   @Override
   public int getPort() {
     return listener.getUri().getPort();
+  }
+  
+  private URI constructRdmaServerUri(String host, int port) {
+    URI uri;
+    try {
+      if (WorkerConf.get().NETWORK_TYPE == NetworkType.RDMA) {
+        uri = new URI("rdma://" + host + ":" + port);
+      } else {
+        uri = new URI("tcp://" + host + ":" + port);
+      }
+      return uri;
+    } catch (URISyntaxException e) {
+      LOG.error("could not resolve rdma data server uri, NetworkType is "+WorkerConf.get().NETWORK_TYPE);
+      throw Throwables.propagate(e);
+    }
   }
 }
