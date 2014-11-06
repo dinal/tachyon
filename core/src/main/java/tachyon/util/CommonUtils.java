@@ -2,9 +2,7 @@ package tachyon.util;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.PrintStream;
 import java.math.BigDecimal;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
@@ -13,14 +11,17 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Scanner;
 
 import org.apache.commons.io.FilenameUtils;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
+import com.google.common.io.ByteStreams;
+import com.google.common.io.Closer;
 
 import tachyon.Constants;
+import tachyon.TachyonURI;
 import tachyon.UnderFileSystem;
 import tachyon.thrift.InvalidPathException;
 
@@ -28,15 +29,13 @@ import tachyon.thrift.InvalidPathException;
  * Common utilities shared by all components in Tachyon.
  */
 public final class CommonUtils {
-  private static final Logger LOG = Logger.getLogger("");
+  private static final Logger LOG = LoggerFactory.getLogger("");
 
   /**
    * Change local file's permission.
    * 
-   * @param filePath
-   *          that will change permission
-   * @param perms
-   *          the permission, e.g. "775"
+   * @param filePath that will change permission
+   * @param perms the permission, e.g. "775"
    * @throws IOException
    */
   public static void changeLocalFilePermission(String filePath, String perms) throws IOException {
@@ -51,10 +50,9 @@ public final class CommonUtils {
       ProcessBuilder builder = new ProcessBuilder(commands);
       Process process = builder.start();
 
-      redirectStreamAsync(process.getInputStream(), System.out);
-      redirectStreamAsync(process.getErrorStream(), System.err);
-
       process.waitFor();
+
+      redirectIO(process);
 
       if (process.exitValue() != 0) {
         throw new IOException("Can not change the file " + file.getAbsolutePath()
@@ -67,10 +65,29 @@ public final class CommonUtils {
   }
 
   /**
+   * Blocking operation that copies the processes stdout/stderr to this JVM's stdout/stderr.
+   */
+  private static void redirectIO(final Process process) throws IOException {
+    // Because chmod doesn't have a lot of error or output messages, its safe to process the output
+    // after the process is done. As of java 7, you can have the process redirect to System.out
+    // and System.err without forking a process.
+    // TODO when java 6 support is dropped, switch to
+    // http://docs.oracle.com/javase/7/docs/api/java/lang/ProcessBuilder.html#inheritIO()
+    Closer closer = Closer.create();
+    try {
+      ByteStreams.copy(closer.register(process.getInputStream()), System.out);
+      ByteStreams.copy(closer.register(process.getErrorStream()), System.err);
+    } catch (Throwable e) {
+      throw closer.rethrow(e);
+    } finally {
+      closer.close();
+    }
+  }
+
+  /**
    * Change local file's permission to be 777.
    * 
-   * @param filePath
-   *          that will change permission
+   * @param filePath that will change permission
    * @throws IOException
    */
   public static void changeLocalFileToFullPermission(String filePath) throws IOException {
@@ -80,8 +97,7 @@ public final class CommonUtils {
   /**
    * Checks and normalizes the given path
    * 
-   * @param path
-   *          The path to clean up
+   * @param path The path to clean up
    * @return a normalized version of the path, with single separators between path components and
    *         dot components resolved
    */
@@ -108,8 +124,7 @@ public final class CommonUtils {
   /**
    * Add the path component to the base path
    * 
-   * @param args
-   *          The components to concatenate
+   * @param args The components to concatenate
    * @return the concatenated path
    */
   public static String concat(Object... args) {
@@ -118,26 +133,22 @@ public final class CommonUtils {
     }
     String retPath = args[0].toString();
     for (int k = 1; k < args.length; k ++) {
-      while (retPath.endsWith(Constants.PATH_SEPARATOR)) {
+      while (retPath.endsWith(TachyonURI.SEPARATOR)) {
         retPath = retPath.substring(0, retPath.length() - 1);
       }
-      if (args[k].toString().startsWith(Constants.PATH_SEPARATOR)) {
+      if (args[k].toString().startsWith(TachyonURI.SEPARATOR)) {
         retPath += args[k].toString();
       } else {
-        retPath += Constants.PATH_SEPARATOR + args[k].toString();
+        retPath += TachyonURI.SEPARATOR + args[k].toString();
       }
     }
     return retPath;
   }
 
-  public static String convertByteArrayToStringWithoutEscape(byte[] data) {
-    StringBuilder sb = new StringBuilder(data.length);
-    for (int i = 0; i < data.length; i ++) {
-      if (data[i] < 128) {
-        sb.append((char) data[i]);
-      } else {
-        return null;
-      }
+  public static String convertByteArrayToStringWithoutEscape(byte[] data, int offset, int length) {
+    StringBuilder sb = new StringBuilder(length);
+    for (int i = offset; i < length && i < data.length; i ++) {
+      sb.append((char) data[i]);
     }
     return sb.toString();
   }
@@ -209,8 +220,7 @@ public final class CommonUtils {
   /**
    * Get the name of the file at a path.
    * 
-   * @param path
-   *          The path
+   * @param path The path
    * @return the name of the file
    * @throws InvalidPathException
    */
@@ -221,8 +231,7 @@ public final class CommonUtils {
   /**
    * Get the parent of the file at a path.
    * 
-   * @param path
-   *          The path
+   * @param path The path
    * @return the parent path of the file; this is "/" if the given path is the root.
    * @throws InvalidPathException
    */
@@ -232,7 +241,7 @@ public final class CommonUtils {
     String parent = cleanedPath.substring(0, cleanedPath.length() - name.length() - 1);
     if (parent.isEmpty()) {
       // The parent is the root path
-      return Constants.PATH_SEPARATOR;
+      return TachyonURI.SEPARATOR;
     }
     return parent;
   }
@@ -240,8 +249,7 @@ public final class CommonUtils {
   /**
    * Get the path components of the given path.
    * 
-   * @param path
-   *          The path to split
+   * @param path The path to split
    * @return the path split into components
    * @throws InvalidPathException
    */
@@ -252,7 +260,7 @@ public final class CommonUtils {
       ret[0] = "";
       return ret;
     }
-    return path.split(Constants.PATH_SEPARATOR);
+    return path.split(TachyonURI.SEPARATOR);
   }
 
   /**
@@ -264,8 +272,7 @@ public final class CommonUtils {
    * <p>
    * tachyon-ft://localhost:19998/abc/d.txt -> /abc/d.txt
    * 
-   * @param path
-   *          the original path
+   * @param path the original path
    * @return the path without the schema
    */
   public static String getPathWithoutSchema(String path) {
@@ -274,10 +281,10 @@ public final class CommonUtils {
     }
 
     path = path.substring(path.indexOf("://") + 3);
-    if (!path.contains(Constants.PATH_SEPARATOR)) {
-      return Constants.PATH_SEPARATOR;
+    if (!path.contains(TachyonURI.SEPARATOR)) {
+      return TachyonURI.SEPARATOR;
     }
-    return path.substring(path.indexOf(Constants.PATH_SEPARATOR));
+    return path.substring(path.indexOf(TachyonURI.SEPARATOR));
   }
 
   public static String getSizeFromBytes(long bytes) {
@@ -307,13 +314,12 @@ public final class CommonUtils {
   /**
    * Check if the given path is the root.
    * 
-   * @param path
-   *          The path to check
+   * @param path The path to check
    * @return true if the path is the root
    * @throws InvalidPathException
    */
   public static boolean isRoot(String path) throws InvalidPathException {
-    return Constants.PATH_SEPARATOR.equals(cleanPath(path));
+    return TachyonURI.SEPARATOR.equals(cleanPath(path));
   }
 
   public static <T> String listToString(List<T> list) {
@@ -357,8 +363,7 @@ public final class CommonUtils {
   /**
    * Parse a String size to Bytes.
    * 
-   * @param spaceSize
-   *          the size of a space, e.g. 10GB, 5TB, 1024
+   * @param spaceSize the size of a space, e.g. 10GB, 5TB, 1024
    * @return the space size in bytes
    */
   public static long parseSpaceSize(String spaceSize) {
@@ -390,8 +395,8 @@ public final class CommonUtils {
     } else if (end.equals("pb")) {
       // When parsing petabyte values, we can't multiply with doubles and longs, since that will
       // lose presicion with such high numbers. Therefore we use a BigDecimal.
-      BigDecimal PBDecimal = new BigDecimal(Constants.PB);
-      return PBDecimal.multiply(BigDecimal.valueOf(ret)).longValue();
+      BigDecimal pBDecimal = new BigDecimal(Constants.PB);
+      return pBDecimal.multiply(BigDecimal.valueOf(ret)).longValue();
     } else {
       throw new IllegalArgumentException("Fail to parse " + ori + " as memory size");
     }
@@ -414,30 +419,16 @@ public final class CommonUtils {
     logger.info(message + " took " + (getCurrentNs() - startTimeNs) + " ns.");
   }
 
-  static void redirectStreamAsync(final InputStream input, final PrintStream output) {
-    new Thread(new Runnable() {
-      @Override
-      public void run() {
-        Scanner scanner = new Scanner(input);
-        while (scanner.hasNextLine()) {
-          output.println(scanner.nextLine());
-        }
-        scanner.close();
-      }
-    }).start();
-  }
-
   /**
    * If the sticky bit of the 'file' is set, the 'file' is only writable to its owner and the owner
    * of the folder containing the 'file'.
    * 
-   * @param file
-   *          absolute file path
+   * @param file absolute file path
    */
   public static void setLocalFileStickyBit(String file) {
     try {
       // sticky bit is not implemented in PosixFilePermission
-      if (file.startsWith(Constants.PATH_SEPARATOR)) {
+      if (file.startsWith(TachyonURI.SEPARATOR)) {
         Runtime.getRuntime().exec("chmod o+t " + file);
       }
     } catch (IOException e) {
@@ -476,13 +467,11 @@ public final class CommonUtils {
   /**
    * Check if the given path is properly formed
    * 
-   * @param path
-   *          The path to check
-   * @throws InvalidPathException
-   *           If the path is not properly formed
+   * @param path The path to check
+   * @throws InvalidPathException If the path is not properly formed
    */
   public static void validatePath(String path) throws InvalidPathException {
-    if (path == null || path.isEmpty() || !path.startsWith(Constants.PATH_SEPARATOR)
+    if (path == null || path.isEmpty() || !path.startsWith(TachyonURI.SEPARATOR)
         || path.contains(" ")) {
       throw new InvalidPathException("Path " + path + " is invalid.");
     }

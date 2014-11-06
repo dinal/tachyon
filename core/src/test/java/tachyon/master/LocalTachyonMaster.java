@@ -2,7 +2,6 @@ package tachyon.master;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
 import com.google.common.base.Preconditions;
@@ -83,6 +82,7 @@ public final class LocalTachyonMaster {
     WorkerConf.clear();
     UserConf.clear();
 
+    System.setProperty("tachyon.web.resources", System.getProperty("user.dir") + "/src/main/webapp");
     mTachyonMaster = new TachyonMaster(new InetSocketAddress(mHostname, 0), 0, 1, 1, 1);
 
     System.setProperty("tachyon.master.port", Integer.toString(getMetaPort()));
@@ -105,8 +105,7 @@ public final class LocalTachyonMaster {
   /**
    * Creates a new local tachyon master with a isolated home and port.
    * 
-   * @throws IOException
-   *           unable to do file operation or listen on port
+   * @throws IOException unable to do file operation or listen on port
    */
   public static LocalTachyonMaster create() throws IOException {
     final String tachyonHome = uniquePath();
@@ -131,8 +130,7 @@ public final class LocalTachyonMaster {
    * }
    * </pre>
    * 
-   * @throws IOException
-   *           unable to do file operation or listen on port
+   * @throws IOException unable to do file operation or listen on port
    */
   public static LocalTachyonMaster create(final String tachyonHome) throws IOException {
     return new LocalTachyonMaster(Preconditions.checkNotNull(tachyonHome));
@@ -156,6 +154,7 @@ public final class LocalTachyonMaster {
     System.clearProperty("tachyon.home");
     System.clearProperty("tachyon.master.hostname");
     System.clearProperty("tachyon.master.port");
+    System.clearProperty("tachyon.web.resources");
   }
 
   public void clearClients() throws IOException {

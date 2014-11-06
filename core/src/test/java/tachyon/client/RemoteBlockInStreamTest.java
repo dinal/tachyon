@@ -8,7 +8,9 @@ import java.util.List;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -42,7 +44,10 @@ public class RemoteBlockInStreamTest {
   public RemoteBlockInStreamTest(NetworkType type) {
     mType = type;
   }
-  
+
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
+
   @After
   public final void after() throws Exception {
     mLocalTachyonCluster.stop();
@@ -140,7 +145,7 @@ public class RemoteBlockInStreamTest {
   }
 
   /**
-   * Test <code>void read(byte b[])</code>. Read from underfs.
+   * Test <code>void read(byte[] b)</code>. Read from underfs.
    */
   @Test
   public void readTest2() throws IOException {
@@ -272,7 +277,7 @@ public class RemoteBlockInStreamTest {
   }
 
   /**
-   * Test <code>void read(byte b[])</code>. Read from remote data server.
+   * Test <code>void read(byte[] b)</code>. Read from remote data server.
    */
   @Test
   public void readTest5() throws IOException {
@@ -320,7 +325,7 @@ public class RemoteBlockInStreamTest {
   }
 
   /**
-   * Test <code>void read(byte b[])</code>. Read from underfs.
+   * Test <code>void read(byte[] b)</code>. Read from underfs.
    */
   @Test
   public void readTest7() throws IOException {
@@ -345,12 +350,13 @@ public class RemoteBlockInStreamTest {
   }
 
   /**
-   * Test <code>void seek(long pos)</code>.
-   * 
+   * Test <code>void seek(long pos)</code>. Validate the expected exception for seeking a negative
+   * position.
+   *
    * @throws IOException
    */
   @Test
-  public void seekExceptionTest() throws IOException {
+  public void seekExceptionTest1() throws IOException {
     for (int k = MIN_LEN; k <= MAX_LEN; k += DELTA) {
       WriteType op = WriteType.THROUGH;
       int fileId = TestUtils.createByteFile(mTfs, "/root/testFile_" + k + "_" + op, op, k);
@@ -371,6 +377,34 @@ public class RemoteBlockInStreamTest {
       }
       is.close();
       throw new IOException("Except seek IOException");
+    }
+  }
+
+  /**
+   * Test <code>void seek(long pos)</code>. Validate the expected exception for seeking a position
+   * that is past block size.
+   *
+   * @throws IOException
+   */
+  @Test
+  public void seekExceptionTest2() throws IOException {
+    thrown.expect(IOException.class);
+    thrown.expectMessage("Seek position is past block size");
+
+    for (int k = MIN_LEN; k <= MAX_LEN; k += DELTA) {
+      WriteType op = WriteType.THROUGH;
+      int fileId = TestUtils.createByteFile(mTfs, "/root/testFile_" + k + "_" + op, op, k);
+
+      TachyonFile file = mTfs.getFile(fileId);
+      InStream is = file.getInStream(ReadType.NO_CACHE);
+      if (k == 0) {
+        Assert.assertTrue(is instanceof EmptyBlockInStream);
+      } else {
+        Assert.assertTrue(is instanceof RemoteBlockInStream);
+      }
+
+      is.seek(k + 1);
+      is.close();
     }
   }
 

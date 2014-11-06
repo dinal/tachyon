@@ -6,7 +6,9 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.accelio.jxio.jxioConnection.JxioConnection;
 
 import tachyon.Constants;
@@ -16,15 +18,15 @@ import tachyon.worker.DataServerMessage;
 
 public class RDMARemoteBlockReader implements RemoteBlockReader {
 
-  private static final Logger LOG = Logger.getLogger(Constants.LOGGER_TYPE);
-  private static String network = setNetwork();
-  private final String uriFormat = network+"://%s:%d/blockId=%d&offset=%d&length=%d";
+  private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
+  private static String sNetwork = setNetwork();
+  private final String mUriFormat = sNetwork + "://%s:%d/blockId=%d&offset=%d&length=%d";
 
   @Override
   public ByteBuffer readRemoteBlock(String host, int port, long blockId, long offset, long length)
       throws IOException {
     try {
-      URI uri = new URI(String.format(uriFormat, host, port, blockId, offset, length));
+      URI uri = new URI(String.format(mUriFormat, host, port, blockId, offset, length));
       JxioConnection jc = new JxioConnection(uri);
       try {
         jc.setRcvSize(Constants.CLIENT_MSGPOOL_SIZE); // 10 buffers in msg pool

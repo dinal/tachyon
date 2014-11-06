@@ -24,7 +24,8 @@ public class TCPRemoteBlockReader implements RemoteBlockReader {
       socketChannel.connect(address);
 
       LOG.info("Connected to remote machine " + address);
-      DataServerMessage sendMsg = DataServerMessage.createBlockRequestMessage(blockId, offset, length);
+      DataServerMessage sendMsg =
+          DataServerMessage.createBlockRequestMessage(blockId, offset, length);
       while (!sendMsg.finishSending()) {
         sendMsg.send(socketChannel);
       }

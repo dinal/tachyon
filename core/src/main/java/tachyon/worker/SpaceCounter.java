@@ -3,15 +3,14 @@ package tachyon.worker;
 /**
  * The worker space counter, in charge of counting and granting spaces in a worker daemon.
  */
-public class WorkerSpaceCounter {
+public class SpaceCounter {
   private final long mCapacityBytes;
   private long mUsedBytes;
 
   /**
-   * @param capacityBytes
-   *          The maximum memory space the TachyonWorker can use, in bytes
+   * @param capacityBytes The maximum memory space the TachyonWorker can use, in bytes
    */
-  public WorkerSpaceCounter(long capacityBytes) {
+  public SpaceCounter(long capacityBytes) {
     mCapacityBytes = capacityBytes;
     mUsedBytes = 0;
   }
@@ -40,8 +39,7 @@ public class WorkerSpaceCounter {
   /**
    * Request space
    * 
-   * @param requestSpaceBytes
-   *          The requested space size, in bytes
+   * @param requestSpaceBytes The requested space size, in bytes
    * @return
    */
   public synchronized boolean requestSpaceBytes(long requestSpaceBytes) {
@@ -56,8 +54,7 @@ public class WorkerSpaceCounter {
   /**
    * Return used space size
    * 
-   * @param returnUsedBytes
-   *          The returned space size, in bytes
+   * @param returnUsedBytes The returned space size, in bytes
    */
   public synchronized void returnUsedBytes(long returnUsedBytes) {
     mUsedBytes -= returnUsedBytes;
@@ -65,7 +62,7 @@ public class WorkerSpaceCounter {
 
   @Override
   public synchronized String toString() {
-    StringBuilder sb = new StringBuilder("WorkerSpaceCounter(");
+    StringBuilder sb = new StringBuilder("SpaceCounter(");
     sb.append(" TOTAL_BYTES: ").append(mCapacityBytes);
     sb.append(", mUsedBytes: ").append(mUsedBytes);
     sb.append(", mAvailableBytes: ").append(mCapacityBytes - mUsedBytes);
@@ -76,8 +73,7 @@ public class WorkerSpaceCounter {
   /**
    * Update the used bytes
    * 
-   * @param usedBytes
-   *          The new used bytes
+   * @param usedBytes The new used bytes
    */
   public synchronized void updateUsedBytes(long usedBytes) {
     mUsedBytes = usedBytes;

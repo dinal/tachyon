@@ -7,7 +7,9 @@ import java.util.ArrayList;
 
 import com.google.common.base.Throwables;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.accelio.jxio.EventName;
 import org.accelio.jxio.EventQueueHandler;
 import org.accelio.jxio.EventReason;
@@ -21,7 +23,6 @@ import org.accelio.jxio.exceptions.JxioGeneralException;
 import org.accelio.jxio.exceptions.JxioSessionClosedException;
 
 import tachyon.Constants;
-import tachyon.NetworkType;
 import tachyon.conf.WorkerConf;
 import tachyon.worker.BlocksLocker;
 import tachyon.worker.DataServer;
@@ -29,32 +30,32 @@ import tachyon.worker.DataServerMessage;
 
 public class RDMADataServer implements Runnable, DataServer {
 
-  private static final Logger LOG = Logger.getLogger(Constants.LOGGER_TYPE);
+  private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
   // The blocks locker manager.
   private final BlocksLocker mBlocksLocker;
-  private final EventQueueHandler eqh;
-  private final ServerPortal listener;
-  private ArrayList<MsgPool> msgPools = new ArrayList<MsgPool>();
   private final Thread mListenerThread;
-  private String network;
+  private final EventQueueHandler mEqh;
+  private final ServerPortal mListener;
+  private ArrayList<MsgPool> mMsgPools = new ArrayList<MsgPool>();
+  private String mNetwork;
 
   public RDMADataServer(InetSocketAddress address, BlocksLocker locker) {
     LOG.info("Starting RDMADataServer @ " + address.toString());
-    network = System.getProperty("tachyon.jxio.network");
-    if (network == null) {
-      network = "rdma";
+    mNetwork = System.getProperty("tachyon.jxio.network");
+    if (mNetwork == null) {
+      mNetwork = "rdma";
     }
     URI uri = constructRdmaServerUri(address.getHostName(), address.getPort());
     mBlocksLocker = locker;
     MsgPool pool =
         new MsgPool(Constants.SERVER_INITIAL_BUF_COUNT, 0,
             org.accelio.jxio.jxioConnection.Constants.MSGPOOL_BUF_SIZE);
-    msgPools.add(pool);
-    eqh =
+    mMsgPools.add(pool);
+    mEqh =
         new EventQueueHandler(new EqhCallbacks(Constants.SERVER_INC_BUF_COUNT, 0,
             org.accelio.jxio.jxioConnection.Constants.MSGPOOL_BUF_SIZE));
-    eqh.bindMsgPool(pool);
-    listener = new ServerPortal(eqh, uri, new PortalServerCallbacks(), null);
+    mEqh.bindMsgPool(pool);
+    mListener = new ServerPortal(mEqh, uri, new PortalServerCallbacks(), null);
     mListenerThread = new Thread(this);
     mListenerThread.start();
   }
@@ -67,7 +68,7 @@ public class RDMADataServer implements Runnable, DataServer {
     public void onSessionEvent(EventName session_event, EventReason reason) {
       LOG.debug("got event " + session_event.toString() + "because of " + reason.toString());
       if (session_event == EventName.PORTAL_CLOSED) {
-        eqh.breakEventLoop();
+        mEqh.breakEventLoop();
       }
     }
 
@@ -76,13 +77,13 @@ public class RDMADataServer implements Runnable, DataServer {
       SessionServerCallbacks callbacks = new SessionServerCallbacks(sesKey.getUri());
       ServerSession session = new ServerSession(sesKey, callbacks);
       callbacks.setSession(session);
-      listener.accept(session);
+      mListener.accept(session);
     }
   }
 
   public class SessionServerCallbacks implements ServerSession.Callbacks {
-    private final DataServerMessage responseMessage;
-    private ServerSession session;
+    private final DataServerMessage mResponseMessage;
+    private ServerSession mSession;
 
     public SessionServerCallbacks(String uri) {
       String[] params = uri.split("blockId=")[1].split("\\?")[0].split("&");
@@ -92,40 +93,41 @@ public class RDMADataServer implements Runnable, DataServer {
       LOG.debug("got request for block id " + blockId + " with offset " + offset + " and length "
           + length);
       int lockId = mBlocksLocker.lock(blockId);
-      responseMessage = DataServerMessage.createBlockResponseMessage(true, blockId, offset, length);
-      responseMessage.setLockId(lockId);
+      mResponseMessage =
+          DataServerMessage.createBlockResponseMessage(true, blockId, offset, length);
+      mResponseMessage.setLockId(lockId);
     }
 
     public void setSession(ServerSession ses) {
-      session = ses;
+      mSession = ses;
     }
 
     public void onRequest(Msg m) {
-      if (session.getIsClosing()) {
-        session.discardRequest(m);
+      if (mSession.getIsClosing()) {
+        mSession.discardRequest(m);
       } else {
-        responseMessage.copyMsgToBuffer(m.getOut());
+        mResponseMessage.copyMsgToBuffer(m.getOut());
         try {
-          session.sendResponse(m);
+          mSession.sendResponse(m);
         } catch (JxioGeneralException e) {
           LOG.error("Exception accured while sending messgae " + e.toString());
-          session.discardRequest(m);
+          mSession.discardRequest(m);
         } catch (JxioSessionClosedException e) {
           LOG.error("session was closed unexpectedly " + e.toString());
-          session.discardRequest(m);
+          mSession.discardRequest(m);
         }
       }
 
-      if (!session.getIsClosing() && responseMessage.finishSending()) {
-        session.close();
+      if (!mSession.getIsClosing() && mResponseMessage.finishSending()) {
+        mSession.close();
       }
     }
 
     public void onSessionEvent(EventName session_event, EventReason reason) {
       LOG.debug("got event " + session_event.toString() + ", the reason is " + reason.toString());
       if (session_event == EventName.SESSION_CLOSED) {
-        responseMessage.close();
-        mBlocksLocker.unlock(Math.abs(responseMessage.getBlockId()), responseMessage.getLockId());
+        mResponseMessage.close();
+        mBlocksLocker.unlock(Math.abs(mResponseMessage.getBlockId()), mResponseMessage.getLockId());
       }
     }
 
@@ -137,59 +139,59 @@ public class RDMADataServer implements Runnable, DataServer {
 
   @Override
   public void run() {
-    int ret = eqh.runEventLoop(-1, -1);
+    int ret = mEqh.runEventLoop(-1, -1);
     if (ret == -1) {
-      LOG.error(this.toString() + " exception occurred in eventLoop:" + eqh.getCaughtException());
+      LOG.error(this.toString() + " exception occurred in eventLoop:" + mEqh.getCaughtException());
     }
-    eqh.stop();
-    eqh.close();
-    for (MsgPool mp : msgPools) {
+    mEqh.stop();
+    mEqh.close();
+    for (MsgPool mp : mMsgPools) {
       mp.deleteMsgPool();
     }
-    msgPools.clear();
+    mMsgPools.clear();
   }
 
   @Override
   public void close() {
     LOG.info("closing server");
-    eqh.breakEventLoop();
+    mEqh.breakEventLoop();
   }
 
   @Override
   public boolean isClosed() {
-    return listener.getIsClosing();
+    return mListener.getIsClosing();
   }
 
   class EqhCallbacks implements EventQueueHandler.Callbacks {
-    private final RDMADataServer outer = RDMADataServer.this;
-    private final int numMsgs;
-    private final int inMsgSize;
-    private final int outMsgSize;
+    private final RDMADataServer mOuter = RDMADataServer.this;
+    private final int mNumMsgs;
+    private final int mInMsgSize;
+    private final int mOutMsgSize;
 
     public EqhCallbacks(int msgs, int in, int out) {
-      numMsgs = msgs;
-      inMsgSize = in;
-      outMsgSize = out;
+      mNumMsgs = msgs;
+      mInMsgSize = in;
+      mOutMsgSize = out;
     }
 
     public MsgPool getAdditionalMsgPool(int in, int out) {
-      MsgPool mp = new MsgPool(numMsgs, inMsgSize, outMsgSize);
-      LOG.warn(this.toString() + " " + outer.toString() + ": new MsgPool: " + mp);
-      outer.msgPools.add(mp);
+      MsgPool mp = new MsgPool(mNumMsgs, mInMsgSize, mOutMsgSize);
+      LOG.warn(this.toString() + " " + mOuter.toString() + ": new MsgPool: " + mp);
+      mOuter.mMsgPools.add(mp);
       return mp;
     }
   }
 
   @Override
   public int getPort() {
-    return listener.getUri().getPort();
+    return mListener.getUri().getPort();
   }
 
   private URI constructRdmaServerUri(String host, int port) {
     URI uri;
     String address = host + ":" + port;
     try {
-      if (network.equals("rdma")) {
+      if (mNetwork.equals("rdma")) {
         uri = new URI("rdma://" + address);
       } else {
         uri = new URI("tcp://" + address);

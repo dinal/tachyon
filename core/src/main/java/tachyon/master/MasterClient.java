@@ -9,22 +9,26 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.log4j.Logger;
 import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.transport.TFramedTransport;
 import org.apache.thrift.transport.TSocket;
 import org.apache.thrift.transport.TTransportException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Throwables;
 
 import tachyon.Constants;
 import tachyon.HeartbeatThread;
 import tachyon.LeaderInquireClient;
+import tachyon.TachyonURI;
 import tachyon.Version;
 import tachyon.conf.CommonConf;
 import tachyon.conf.UserConf;
+import tachyon.retry.ExponentialBackoffRetry;
+import tachyon.retry.RetryPolicy;
 import tachyon.thrift.BlockInfoException;
 import tachyon.thrift.ClientBlockInfo;
 import tachyon.thrift.ClientDependencyInfo;
@@ -48,11 +52,11 @@ import tachyon.util.NetworkUtils;
 
 /**
  * The master server client side.
- *
+ * 
  * Since MasterService.Client is not thread safe, this class has to guarantee thread safe.
  */
-public class MasterClient implements Closeable {
-  private static final Logger LOG = Logger.getLogger(Constants.LOGGER_TYPE);
+public final class MasterClient implements Closeable {
+  private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
   private static final int MAX_CONNECT_TRY = 5;
 
   private boolean mUseZookeeper;
@@ -79,8 +83,7 @@ public class MasterClient implements Closeable {
   }
 
   /**
-   * @param workerId
-   *          if -1, means the checkpoint is added directly by the client from underlayer fs.
+   * @param workerId if -1, means the checkpoint is added directly by the client from underlayer fs.
    * @param fileId
    * @param length
    * @param checkpointPath
@@ -112,14 +115,17 @@ public class MasterClient implements Closeable {
   @Override
   public synchronized void close() {
     if (mConnected) {
-      LOG.debug("Disconnecting from the master " + mMasterAddress);
+      LOG.debug("Disconnecting from the master {}", mMasterAddress);
       mConnected = false;
     }
-    if (mProtocol != null) {
-      mProtocol.getTransport().close();
-    }
-    if (mHeartbeatThread != null) {
-      mHeartbeatThread.shutdown();
+    try {
+      if (mProtocol != null) {
+        mProtocol.getTransport().close();
+      }
+    } finally {
+      if (mHeartbeatThread != null) {
+        mHeartbeatThread.shutdown();
+      }
     }
   }
 
@@ -138,9 +144,9 @@ public class MasterClient implements Closeable {
       throw new IOException("Client is shutdown, will not try to connect");
     }
 
-    int tries = 0;
     Exception lastException = null;
-    while (tries ++ < MAX_CONNECT_TRY && !mIsShutdown) {
+    RetryPolicy retry = new ExponentialBackoffRetry(50, Constants.SECOND_MS, MAX_CONNECT_TRY);
+    do {
       mMasterAddress = getMasterAddress();
 
       LOG.info("Tachyon client (version " + Version.VERSION + ") is trying to connect master @ "
@@ -161,12 +167,11 @@ public class MasterClient implements Closeable {
         mHeartbeatThread.start();
       } catch (TTransportException e) {
         lastException = e;
-        LOG.error("Failed to connect (" + tries + ") to master " + mMasterAddress + " : "
-            + e.getMessage());
+        LOG.error("Failed to connect (" + retry.getRetryCount() + ") to master " + mMasterAddress
+            + " : " + e.getMessage());
         if (mHeartbeatThread != null) {
           mHeartbeatThread.shutdown();
         }
-        CommonUtils.sleepMs(LOG, Constants.SECOND_MS);
         continue;
       }
 
@@ -181,11 +186,11 @@ public class MasterClient implements Closeable {
 
       mConnected = true;
       return;
-    }
+    } while (retry.attemptRetry() && !mIsShutdown);
 
     // Reaching here indicates that we did not successfully connect.
     throw new IOException("Failed to connect to master " + mMasterAddress + " after "
-        + (tries - 1) + " attempts", lastException);
+        + (retry.getRetryCount()) + " attempts", lastException);
   }
 
   public synchronized ClientDependencyInfo getClientDependencyInfo(int did) throws IOException {
@@ -208,7 +213,7 @@ public class MasterClient implements Closeable {
     if (path == null) {
       path = "";
     }
-    if (fileId == -1 && !path.startsWith(Constants.PATH_SEPARATOR)) {
+    if (fileId == -1 && !path.startsWith(TachyonURI.SEPARATOR)) {
       throw new IOException("Illegal path parameter: " + path);
     }
 
@@ -295,9 +300,9 @@ public class MasterClient implements Closeable {
 
   private synchronized void parameterCheck(int id, String path) throws IOException {
     if (path == null) {
-      throw new IOException("Illegal path parameter: " + path + " ; Please use an empty string.");
+      throw new NullPointerException("Paths may not be null; empty is the null state");
     }
-    if (id == -1 && (path == null || !path.startsWith(Constants.PATH_SEPARATOR))) {
+    if (id == -1 && !path.startsWith(TachyonURI.SEPARATOR)) {
       throw new IOException("Illegal path parameter: " + path);
     }
   }
@@ -358,7 +363,7 @@ public class MasterClient implements Closeable {
 
   public synchronized int user_createFile(String path, String ufsPath, long blockSizeByte,
       boolean recursive) throws IOException {
-    if (path == null || !path.startsWith(Constants.PATH_SEPARATOR)) {
+    if (path == null || !path.startsWith(TachyonURI.SEPARATOR)) {
       throw new IOException("Illegal path parameter: " + path);
     }
     if (ufsPath == null) {
@@ -743,15 +748,11 @@ public class MasterClient implements Closeable {
 
   /**
    * Register the worker to the master.
-   *
-   * @param workerNetAddress
-   *          Worker's NetAddress
-   * @param totalBytes
-   *          Worker's capacity
-   * @param usedBytes
-   *          Worker's used storage
-   * @param currentBlockList
-   *          Blocks in worker's space.
+   * 
+   * @param workerNetAddress Worker's NetAddress
+   * @param totalBytes Worker's capacity
+   * @param usedBytes Worker's used storage
+   * @param currentBlockList Blocks in worker's space.
    * @return the worker id assigned by the master.
    * @throws BlockInfoException
    * @throws TException

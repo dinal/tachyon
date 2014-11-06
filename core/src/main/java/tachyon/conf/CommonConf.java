@@ -3,7 +3,8 @@ package tachyon.conf;
 import java.io.File;
 import java.net.InetSocketAddress;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -14,26 +15,27 @@ import tachyon.Constants;
  * Configurations shared by master and workers.
  */
 public class CommonConf extends Utils {
-  private static final Logger LOG = Logger.getLogger("");
+  private static final Logger LOG = LoggerFactory.getLogger("");
 
-  private static CommonConf COMMON_CONF = null;
+  private static CommonConf sCommonConf = null;
 
-  public static final ImmutableList<String> DEFAULT_HADOOP_UFS_PREFIX = ImmutableList.of(
-      "hdfs://", "s3://", "s3n://", "glusterfs:///");
+  public static final ImmutableList<String> DEFAULT_HADOOP_UFS_PREFIX = ImmutableList.of("hdfs://",
+      "s3://", "s3n://", "glusterfs:///");
 
+  private static final String DEFAULT_HOME = "/mnt/tachyon_default_home";
   /**
    * This is for unit test only. DO NOT use it for other purpose.
    */
   public static synchronized void clear() {
-    COMMON_CONF = null;
+    sCommonConf = null;
   }
 
   public static synchronized CommonConf get() {
-    if (COMMON_CONF == null) {
-      COMMON_CONF = new CommonConf();
+    if (sCommonConf == null) {
+      sCommonConf = new CommonConf();
     }
 
-    return COMMON_CONF;
+    return sCommonConf;
   }
 
   public final String TACHYON_HOME;
@@ -66,13 +68,13 @@ public class CommonConf extends Utils {
 
   private CommonConf() {
     if (System.getProperty("tachyon.home") == null) {
-      LOG.warn("tachyon.home is not set. Using /mnt/tachyon_default_home as the default value.");
-      File file = new File("/mnt/tachyon_default_home");
+      LOG.warn("tachyon.home is not set. Using {} as the default value.", DEFAULT_HOME);
+      File file = new File(DEFAULT_HOME);
       if (!file.exists()) {
         file.mkdirs();
       }
     }
-    TACHYON_HOME = getProperty("tachyon.home", "/mnt/tachyon_default_home");
+    TACHYON_HOME = getProperty("tachyon.home", DEFAULT_HOME);
     WEB_RESOURCES = getProperty("tachyon.web.resources", TACHYON_HOME + "/core/src/main/webapp");
     UNDERFS_ADDRESS = getProperty("tachyon.underfs.address", TACHYON_HOME + "/underfs");
     UNDERFS_DATA_FOLDER = getProperty("tachyon.data.folder", UNDERFS_ADDRESS + "/tachyon/data");

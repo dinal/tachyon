@@ -2,23 +2,24 @@ package tachyon.conf;
 
 import tachyon.Constants;
 import tachyon.NetworkType;
+import tachyon.client.WriteType;
 
 public class UserConf extends Utils {
-  private static UserConf USER_CONF = null;
+  private static UserConf sUserConf = null;
 
   /**
    * This is for unit test only. DO NOT use it for other purpose.
    */
   public static synchronized void clear() {
-    USER_CONF = null;
+    sUserConf = null;
   }
 
   public static synchronized UserConf get() {
-    if (USER_CONF == null) {
-      USER_CONF = new UserConf();
+    if (sUserConf == null) {
+      sUserConf = new UserConf();
     }
 
-    return USER_CONF;
+    return sUserConf;
   }
 
   public final int FAILED_SPACE_REQUEST_LIMITS;
@@ -33,6 +34,8 @@ public class UserConf extends Utils {
   
   public final NetworkType NETWORK_TYPE;
 
+  public final WriteType DEFAULT_WRITE_TYPE;
+
   private UserConf() {
     FAILED_SPACE_REQUEST_LIMITS = getIntProperty("tachyon.user.failed.space.request.limits", 3);
     QUOTA_UNIT_BYTES = getLongProperty("tachyon.user.quota.unit.bytes", 8 * Constants.MB);
@@ -41,10 +44,11 @@ public class UserConf extends Utils {
         getLongProperty("tachyon.user.heartbeat.interval.ms", Constants.SECOND_MS);
     MASTER_CLIENT_TIMEOUT_MS =
         getLongProperty("tachyon.user.master.client.timeout.ms", 10 * Constants.SECOND_MS);
-    DEFAULT_BLOCK_SIZE_BYTE =
-        getLongProperty("tachyon.user.default.block.size.byte", Constants.GB);
+    DEFAULT_BLOCK_SIZE_BYTE = getLongProperty("tachyon.user.default.block.size.byte", Constants.GB);
     REMOTE_READ_BUFFER_SIZE_BYTE =
         getIntProperty("tachyon.user.remote.read.buffer.size.byte", Constants.MB);
     NETWORK_TYPE = getEnumProperty("tachyon.user.network.type", NetworkType.NIO);
+    DEFAULT_WRITE_TYPE =
+        getEnumProperty("tachyon.user.file.writetype.default", WriteType.CACHE_THROUGH);
   }
 }

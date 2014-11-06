@@ -1,13 +1,14 @@
 package tachyon.client;
 
-import java.io.IOException;
 import java.io.InputStream;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import tachyon.Constants;
 import tachyon.NetworkType;
@@ -15,6 +16,7 @@ import tachyon.UnderFileSystem;
 import tachyon.client.rdma.RDMARemoteBlockReader;
 import tachyon.client.tcp.TCPRemoteBlockReader;
 import tachyon.conf.UserConf;
+import tachyon.conf.WorkerConf;
 import tachyon.thrift.ClientBlockInfo;
 import tachyon.thrift.NetAddress;
 import tachyon.util.CommonUtils;
@@ -25,7 +27,7 @@ import tachyon.util.NetworkUtils;
  */
 public class RemoteBlockInStream extends BlockInStream {
   private static final int BUFFER_SIZE = UserConf.get().REMOTE_READ_BUFFER_SIZE_BYTE;
-  private static final Logger LOG = Logger.getLogger(Constants.LOGGER_TYPE);
+  private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
 
   private ClientBlockInfo mBlockInfo;
   private InputStream mCheckpointInputStream = null;
@@ -37,7 +39,6 @@ public class RemoteBlockInStream extends BlockInStream {
   private BlockOutStream mBlockOutStream = null;
 
   private Object mUFSConf = null;
-  private final UserConf USER_CONF = UserConf.get();
 
   /**
    * @param file the file the block belongs to
@@ -242,19 +243,23 @@ public class RemoteBlockInStream extends BlockInStream {
   private ByteBuffer retrieveByteBufferFromRemoteMachine(InetSocketAddress address, long blockId,
       long offset, long length) throws IOException {
     RemoteBlockReader reader;
-    LOG.info("Going to read remote buffer, network type:"+USER_CONF.NETWORK_TYPE);
-    if (USER_CONF.NETWORK_TYPE == NetworkType.RDMA) {
+    LOG.info("Going to read remote buffer, network type:" + UserConf.get().NETWORK_TYPE);
+    if (UserConf.get().NETWORK_TYPE == NetworkType.RDMA) {
       reader = new RDMARemoteBlockReader();
     } else {
       reader = new TCPRemoteBlockReader();
     }
-    return reader.readRemoteBlock(address.getHostName(), address.getPort(), blockId, offset, length);
+    return reader.readRemoteBlock(address.getHostName(), address.getPort(),
+        blockId, offset, length);
   }
 
   @Override
   public void seek(long pos) throws IOException {
     if (pos < 0) {
-      throw new IOException("pos is negative: " + pos);
+      throw new IOException("Seek position is negative: " + pos);
+    } else if (pos > mBlockInfo.length) {
+      throw new IOException("Seek position is past block size: " + pos + ", Block Size = "
+          + mBlockInfo.length);
     }
     mRecache = false;
     if (mCurrentBuffer != null) {

@@ -2,7 +2,7 @@ package tachyon.master;
 
 import java.io.IOException;
 
-import tachyon.Constants;
+import tachyon.TachyonURI;
 import tachyon.UnderFileSystem;
 
 /**
@@ -19,17 +19,14 @@ public class Journal {
   /**
    * Create a Journal manager.
    * 
-   * @param folder
-   *          the folder contains image file and edit log files.
-   * @param imageFileName
-   *          image file name
-   * @param editLogFileName
-   *          edit file name
+   * @param folder the folder contains image file and edit log files.
+   * @param imageFileName image file name
+   * @param editLogFileName edit file name
    * @throws IOException
    */
   public Journal(String folder, String imageFileName, String editLogFileName) throws IOException {
-    if (!folder.endsWith(Constants.PATH_SEPARATOR)) {
-      folder += Constants.PATH_SEPARATOR;
+    if (!folder.endsWith(TachyonURI.SEPARATOR)) {
+      folder += TachyonURI.SEPARATOR;
     }
     mImagePath = folder + imageFileName;
     mEditLogPath = folder + editLogFileName;
@@ -47,8 +44,7 @@ public class Journal {
   /**
    * Create an edit log.
    * 
-   * @param startingTransactionId
-   *          the starting transaction id of the edit log.
+   * @param startingTransactionId the starting transaction id of the edit log.
    * @throws IOException
    */
   public void createEditLog(long startingTransactionId) throws IOException {
@@ -59,8 +55,7 @@ public class Journal {
    * Create a new image of the Master. It will be created at the mImagePath. If the
    * mStandbyImagePath isn't null, it will rename the mStandbyImagePath to the mImagePath.
    * 
-   * @param info
-   *          The Master Info
+   * @param info The Master Info
    * @throws IOException
    */
   public void createImage(MasterInfo info) throws IOException {
@@ -75,10 +70,8 @@ public class Journal {
   /**
    * Create a new image of the Master to the specified path.
    * 
-   * @param info
-   *          The Master Info
-   * @param imagePath
-   *          The path of the image to be created
+   * @param info The Master Info
+   * @param imagePath The path of the image to be created
    * @throws IOException
    */
   public void createImage(MasterInfo info, String imagePath) throws IOException {
@@ -107,8 +100,7 @@ public class Journal {
   /**
    * Load edit log.
    * 
-   * @param info
-   *          The Master Info.
+   * @param info The Master Info.
    * @return The last transaction id.
    * @throws IOException
    */
@@ -119,8 +111,7 @@ public class Journal {
   /**
    * Load image file.
    * 
-   * @param info
-   *          The Master Info.
+   * @param info The Master Info.
    * @throws IOException
    */
   public void loadImage(MasterInfo info) throws IOException {
@@ -130,10 +121,8 @@ public class Journal {
   /**
    * Load one log file of the Master
    * 
-   * @param info
-   *          The Master Info
-   * @param path
-   *          The path of the edit log
+   * @param info The Master Info
+   * @param path The path of the edit log
    * @throws IOException
    */
   public void loadSingleLogFile(MasterInfo info, String path) throws IOException {
@@ -146,7 +135,7 @@ public class Journal {
    * 
    * @param size
    */
-  public void setMaxLogSize(int size) {
+  void setMaxLogSize(int size) {
     mEditLog.setMaxLogSize(size);
   }
 }

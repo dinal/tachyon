@@ -1,14 +1,30 @@
 package tachyon.web;
 
-import tachyon.Constants;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+
+import com.google.common.base.Function;
+import com.google.common.collect.Ordering;
+
+import tachyon.TachyonURI;
 import tachyon.thrift.ClientFileInfo;
 import tachyon.thrift.NetAddress;
 import tachyon.util.CommonUtils;
 
-import java.util.ArrayList;
-import java.util.List;
+public final class UiFileInfo {
+  /**
+   * Provides ordering of {@link tachyon.web.UiFileInfo} based off a string comparison of the
+   * absolute paths.
+   */
+  public static final Ordering<UiFileInfo> PATH_STRING_COMPARE = Ordering.natural().onResultOf(
+      new Function<UiFileInfo, Comparable<String>>() {
+        @Override
+        public Comparable<String> apply(UiFileInfo input) {
+          return input.mAbsolutePath;
+        }
+      });
 
-public class UiFileInfo implements Comparable<UiFileInfo> {
   private final int mId;
   private final int mDependencyId;
   private final String mName;
@@ -39,11 +55,6 @@ public class UiFileInfo implements Comparable<UiFileInfo> {
     mIsDirectory = fileInfo.isFolder;
     mIsPinned = fileInfo.isPinned;
     mFileLocations = new ArrayList<String>();
-  }
-
-  @Override
-  public int compareTo(UiFileInfo o) {
-    return mAbsolutePath.compareTo(o.getAbsolutePath());
   }
 
   public String getAbsolutePath() {
@@ -99,7 +110,7 @@ public class UiFileInfo implements Comparable<UiFileInfo> {
   }
 
   public String getName() {
-    if (Constants.PATH_SEPARATOR.equals(mAbsolutePath)) {
+    if (TachyonURI.SEPARATOR.equals(mAbsolutePath)) {
       return "root";
     } else {
       return mName;

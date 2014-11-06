@@ -12,7 +12,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Throwables;
 
@@ -23,11 +24,11 @@ import tachyon.worker.DataServer;
 import tachyon.worker.DataServerMessage;
 
 /**
- * The Server to serve data file read request from remote machines. The current implementation
- * is based on non-blocking NIO.
+ * The Server to serve data file read request from remote machines. The current implementation is
+ * based on non-blocking NIO.
  */
 public class NIODataServer implements Runnable, DataServer {
-  private static final Logger LOG = Logger.getLogger(Constants.LOGGER_TYPE);
+  private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
 
   // The host:port combination to listen on
   private InetSocketAddress mAddress;
@@ -53,10 +54,8 @@ public class NIODataServer implements Runnable, DataServer {
   /**
    * Create a data server with direct access to worker storage.
    * 
-   * @param address
-   *          The address of the data server.
-   * @param locker
-   *          The lock system for lock blocks.
+   * @param address The address of the data server.
+   * @param locker The lock system for lock blocks.
    */
   public NIODataServer(InetSocketAddress address, BlocksLocker locker) {
     LOG.info("Starting DataServer @ " + address);

@@ -4,11 +4,12 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
-import org.apache.log4j.Logger;
 import org.apache.thrift.server.TServer;
 import org.apache.thrift.server.TThreadedSelectorServer;
 import org.apache.thrift.transport.TNonblockingServerSocket;
 import org.apache.thrift.transport.TTransportException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Throwables;
 
@@ -31,7 +32,7 @@ import tachyon.worker.rdma.RDMADataServer;
  * Entry point for a worker daemon.
  */
 public class TachyonWorker implements Runnable {
-  private static final Logger LOG = Logger.getLogger(Constants.LOGGER_TYPE);
+  private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
 
   /**
    * Create a new TachyonWorker
@@ -125,13 +126,13 @@ public class TachyonWorker implements Runnable {
   private TServer mServer;
 
   private TNonblockingServerSocket mServerTNonblockingServerSocket;
-  private WorkerStorage mWorkerStorage;
+  private final WorkerStorage mWorkerStorage;
 
-  private WorkerServiceHandler mWorkerServiceHandler;
+  private final WorkerServiceHandler mWorkerServiceHandler;
 
   private final DataServer mDataServer;
 
-  private Thread mHeartbeatThread;
+  private final Thread mHeartbeatThread;
 
   private volatile boolean mStop = false;
 
@@ -167,7 +168,7 @@ public class TachyonWorker implements Runnable {
     // In a production or any real deployment setup, port '0' should not be used as it will make
     // deployment more complicated.
     InetSocketAddress dataAddress = new InetSocketAddress(workerAddress.getHostName(), dataPort);
-    BlocksLocker blockLocker = new BlocksLocker(mWorkerStorage, Users.sDATASERVER_USER_ID);
+    BlocksLocker blockLocker = new BlocksLocker(mWorkerStorage, Users.DATASERVER_USER_ID);
     mDataServer = createDataServer(dataAddress, blockLocker);
     mDataPort = mDataServer.getPort();
 
@@ -237,7 +238,7 @@ public class TachyonWorker implements Runnable {
     while (!mStop) {
       long diff = System.currentTimeMillis() - lastHeartbeatMs;
       if (diff < WorkerConf.get().TO_MASTER_HEARTBEAT_INTERVAL_MS) {
-        LOG.debug("Heartbeat process takes " + diff + " ms.");
+        LOG.debug("Heartbeat process takes {} ms.", diff);
         CommonUtils.sleepMs(LOG, WorkerConf.get().TO_MASTER_HEARTBEAT_INTERVAL_MS - diff);
       } else {
         LOG.error("Heartbeat process takes " + diff + " ms.");
@@ -251,11 +252,7 @@ public class TachyonWorker implements Runnable {
         LOG.error(e.getMessage(), e);
       } catch (IOException e) {
         LOG.error(e.getMessage(), e);
-        try {
-          mWorkerStorage.resetMasterClient();
-        } catch (IOException e2) {
-          LOG.error("Received exception while attempting to reset client", e2);
-        }
+        mWorkerStorage.resetMasterClient();
         CommonUtils.sleepMs(LOG, Constants.SECOND_MS);
         cmd = null;
         if (System.currentTimeMillis() - lastHeartbeatMs >= WorkerConf.get().HEARTBEAT_TIMEOUT_MS) {
@@ -270,7 +267,7 @@ public class TachyonWorker implements Runnable {
             LOG.error("Unknown command: " + cmd);
             break;
           case Nothing:
-            LOG.debug("Nothing command: " + cmd);
+            LOG.debug("Nothing command: {}", cmd);
             break;
           case Register:
             LOG.info("Register command: " + cmd);

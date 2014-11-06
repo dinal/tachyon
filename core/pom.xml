@@ -197,26 +197,16 @@
               <artifactId>netty</artifactId>
             </exclusion>
             <exclusion>
-              <groupId>org.codehaus.jackson</groupId>
-              <artifactId>jackson-core-asl</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.codehaus.jackson</groupId>
-              <artifactId>jackson-mapper-asl</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.codehaus.jackson</groupId>
-              <artifactId>jackson-jaxrs</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.codehaus.jackson</groupId>
-              <artifactId>jackson-xc</artifactId>
-            </exclusion>
-            <exclusion>
               <groupId>com.google.guava</groupId>
               <artifactId>guava</artifactId>
             </exclusion>
           </exclusions>
+        </dependency>
+        <dependency>
+          <groupId>commons-httpclient</groupId>
+          <artifactId>commons-httpclient</artifactId>
+          <version>3.0.1</version>
+          <scope>test</scope>
         </dependency>
       </dependencies>
     </profile>
@@ -245,22 +235,6 @@
             <exclusion>
               <groupId>org.jboss.netty</groupId>
               <artifactId>netty</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.codehaus.jackson</groupId>
-              <artifactId>jackson-core-asl</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.codehaus.jackson</groupId>
-              <artifactId>jackson-mapper-asl</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.codehaus.jackson</groupId>
-              <artifactId>jackson-jaxrs</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.codehaus.jackson</groupId>
-              <artifactId>jackson-xc</artifactId>
             </exclusion>
           </exclusions>
         </dependency>
@@ -389,7 +363,7 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <version>2.14</version>
         <configuration>
-          <argLine>-Dufs=${ufs}</argLine>
+          <argLine>-Dufs=${ufs} -Djava.security.krb5.realm= -Djava.security.krb5.kdc=</argLine>
           <redirectTestOutputToFile>${test.output.redirect}</redirectTestOutputToFile>
         </configuration>
       </plugin>
@@ -422,6 +396,41 @@
           <xmlOutput>true</xmlOutput>
           <effort>Max</effort>
         </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <version>2.13</version>
+        <configuration>
+          <configLocation>${project.basedir}/src/main/resources/tachyon_checks.xml</configLocation>
+          <!-- TODO: This is needed to excuse Tachyon Configuration members' name from being -->
+          <!-- checked because the members are define using all upper case. -->
+          <!-- Once the new configuration is implemented we wil remove this exception -->
+          <suppressionsLocation>
+            ${project.basedir}/src/main/resources/tachyon_checkstyle_suppressions.xml
+          </suppressionsLocation>
+          <excludes>**/tachyon/thrift/**</excludes>
+          <encoding>UTF-8</encoding>
+          <consoleOutput>true</consoleOutput>
+          <failsOnError>true</failsOnError>
+          <linkXRef>false</linkXRef>
+        </configuration>
+        <executions>
+          <execution>
+            <id>checkstyle</id>
+            <phase>validate</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+        <dependencies>
+          <dependency>
+            <groupId>com.puppycrawl.tools</groupId>
+            <artifactId>checkstyle</artifactId>
+            <version>5.9</version>
+          </dependency>
+        </dependencies>
       </plugin>
     </plugins>
   </build>

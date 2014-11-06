@@ -18,9 +18,10 @@ import tachyon.TachyonURI;
 import tachyon.client.InStream;
 import tachyon.client.OutStream;
 import tachyon.client.ReadType;
-import tachyon.client.TachyonFS;
 import tachyon.client.TachyonFile;
+import tachyon.client.TachyonFS;
 import tachyon.client.WriteType;
+import tachyon.conf.UserConf;
 import tachyon.thrift.ClientBlockInfo;
 import tachyon.thrift.ClientFileInfo;
 import tachyon.util.CommonUtils;
@@ -32,10 +33,9 @@ public class TFsShell implements Closeable {
   /**
    * Main method, starts a new TFsShell
    * 
-   * @param argv
-   *          [] Array of arguments given by the user's input from the terminal
+   * @param argv [] Array of arguments given by the user's input from the terminal
    */
-  public static void main(String argv[]) throws IOException {
+  public static void main(String[] argv) throws IOException {
     TFsShell shell = new TFsShell();
     int ret;
     try {
@@ -56,14 +56,14 @@ public class TFsShell implements Closeable {
   /**
    * Prints the file's contents to the console.
    * 
-   * @param argv
-   *          [] Array of arguments given by the user's input from the terminal
+   * @param argv [] Array of arguments given by the user's input from the terminal
    * @return 0 if command is successful, -1 if an error occurred.
    * @throws IOException
    */
-  public int cat(String argv[]) throws IOException {
+  public int cat(String[] argv) throws IOException {
     if (argv.length != 2) {
       System.out.println("Usage: tfs cat <path>");
+      return -1;
     }
     TachyonURI path = new TachyonURI(argv[1]);
     TachyonFS tachyonClient = createFS(path);
@@ -96,12 +96,11 @@ public class TFsShell implements Closeable {
    * Copies a file or directory specified by argv from the local filesystem to the filesystem. Will
    * fail if the path given already exists in the filesystem.
    * 
-   * @param argv
-   *          [] Array of arguments given by the user's input from the terminal
+   * @param argv [] Array of arguments given by the user's input from the terminal
    * @return 0 if command is successful, -1 if an error occurred.
    * @throws IOException
    */
-  public int copyFromLocal(String argv[]) throws IOException {
+  public int copyFromLocal(String[] argv) throws IOException {
     if (argv.length != 3) {
       System.out.println("Usage: tfs copyFromLocal <src> <remoteDst>");
       return -1;
@@ -131,7 +130,7 @@ public class TFsShell implements Closeable {
       TachyonFile tFile = tachyonClient.getFile(fileId);
       Closer closer = Closer.create();
       try {
-        OutStream os = closer.register(tFile.getOutStream(WriteType.CACHE_THROUGH));
+        OutStream os = closer.register(tFile.getOutStream(UserConf.get().DEFAULT_WRITE_TYPE));
         FileInputStream in = closer.register(new FileInputStream(src));
         FileChannel channel = closer.register(in.getChannel());
         ByteBuffer buf = ByteBuffer.allocate(Constants.KB);
@@ -159,12 +158,11 @@ public class TFsShell implements Closeable {
   /**
    * Copies a file specified by argv from the filesystem to the local filesystem.
    * 
-   * @param argv
-   *          [] Array of arguments given by the user's input from the terminal
+   * @param argv [] Array of arguments given by the user's input from the terminal
    * @return 0 if command is successful, -1 if an error occurred.
    * @throws IOException
    */
-  public int copyToLocal(String argv[]) throws IOException {
+  public int copyToLocal(String[] argv) throws IOException {
     if (argv.length != 3) {
       System.out.println("Usage: tfs copyToLocal <src> <localdst>");
       return -1;
@@ -201,12 +199,11 @@ public class TFsShell implements Closeable {
   /**
    * Displays the number of folders and files matching the specified prefix in argv.
    * 
-   * @param argv
-   *          [] Array of arguments given by the user's input from the terminal
+   * @param argv [] Array of arguments given by the user's input from the terminal
    * @return 0 if command is successful, -1 if an error occurred.
    * @throws IOException
    */
-  public int count(String argv[]) throws IOException {
+  public int count(String[] argv) throws IOException {
     if (argv.length != 2) {
       System.out.println("Usage: tfs count <path>");
       return -1;
@@ -224,10 +221,10 @@ public class TFsShell implements Closeable {
     TachyonFile tFile = tachyonClient.getFile(path);
 
     if (tFile.isFile()) {
-      return new long[] { 1L, 0L, tFile.length() };
+      return new long[] {1L, 0L, tFile.length()};
     }
 
-    long[] rtn = new long[] { 0L, 1L, 0L };
+    long[] rtn = new long[] {0L, 1L, 0L};
 
     List<ClientFileInfo> files = tachyonClient.listStatus(path);
     Collections.sort(files);
@@ -243,12 +240,11 @@ public class TFsShell implements Closeable {
   /**
    * Displays the file's all blocks info
    * 
-   * @param argv
-   *          [] Array of arguments given by the user's input from the terminal
+   * @param argv [] Array of arguments given by the user's input from the terminal
    * @return 0 if command is successful, -1 if an error occurred.
    * @throws IOException
    */
-  public int fileinfo(String argv[]) throws IOException {
+  public int fileinfo(String[] argv) throws IOException {
     if (argv.length != 2) {
       System.out.println("Usage: tfs fileinfo <path>");
       return -1;
@@ -267,12 +263,11 @@ public class TFsShell implements Closeable {
   /**
    * Displays a list of hosts that have the file specified in argv stored.
    * 
-   * @param argv
-   *          [] Array of arguments given by the user's input from the terminal
+   * @param argv [] Array of arguments given by the user's input from the terminal
    * @return 0 if command is successful, -1 if an error occurred.
    * @throws IOException
    */
-  public int location(String argv[]) throws IOException {
+  public int location(String[] argv) throws IOException {
     if (argv.length != 2) {
       System.out.println("Usage: tfs location <path>");
       return -1;
@@ -291,12 +286,11 @@ public class TFsShell implements Closeable {
   /**
    * Displays information for all directories and files directly under the path specified in argv.
    * 
-   * @param argv
-   *          [] Array of arguments given by the user's input from the terminal
+   * @param argv [] Array of arguments given by the user's input from the terminal
    * @return 0 if command is successful, -1 if an error occurred.
    * @throws IOException
    */
-  public int ls(String argv[]) throws IOException {
+  public int ls(String[] argv) throws IOException {
     if (argv.length != 2) {
       System.out.println("Usage: tfs ls <path>");
       return -1;
@@ -325,12 +319,11 @@ public class TFsShell implements Closeable {
    * Displays information for all directories and files under the path specified in argv
    * recursively.
    * 
-   * @param argv
-   *          [] Array of arguments given by the user's input from the terminal
+   * @param argv [] Array of arguments given by the user's input from the terminal
    * @return 0 if command is successful, -1 if an error occurred.
    * @throws IOException
    */
-  public int lsr(String argv[]) throws IOException {
+  public int lsr(String[] argv) throws IOException {
     if (argv.length != 2) {
       System.out.println("Usage: tfs lsr <path>");
       return -1;
@@ -352,22 +345,21 @@ public class TFsShell implements Closeable {
       System.out.format(format, CommonUtils.getSizeFromBytes(file.getLength()),
           CommonUtils.convertMsToDate(file.getCreationTimeMs()), inMemory, file.getPath());
       if (file.isFolder) {
-        lsr(new String[] { "lsr", file.getPath() });
+        lsr(new String[] {"lsr", file.getPath()});
       }
     }
     return 0;
   }
 
   /**
-   * Creates a new directory specified by the path in argv, including any parent folders that
-   * are required. This method fails if a directory or file with the same path already exists.
+   * Creates a new directory specified by the path in argv, including any parent folders that are
+   * required. This method fails if a directory or file with the same path already exists.
    * 
-   * @param argv
-   *          [] Array of arguments given by the user's input from the terminal
+   * @param argv [] Array of arguments given by the user's input from the terminal
    * @return 0 if command is successful, -1 if an error occurred.
    * @throws IOException
    */
-  public int mkdir(String argv[]) throws IOException {
+  public int mkdir(String[] argv) throws IOException {
     if (argv.length != 2) {
       System.out.println("Usage: tfs mkdir <path>");
       return -1;
@@ -383,15 +375,14 @@ public class TFsShell implements Closeable {
   }
 
   /**
-   * Pins the given file or folder (recursively pinning all children if a folder). Pinned files
-   * are never evicted from memory.
+   * Pins the given file or folder (recursively pinning all children if a folder). Pinned files are
+   * never evicted from memory.
    * 
-   * @param argv
-   *          [] Array of arguments given by the user's input from the terminal
+   * @param argv [] Array of arguments given by the user's input from the terminal
    * @return 0 if command is successful, -1 if an error occurred.
    * @throws IOException
    */
-  public int pin(String argv[]) throws IOException {
+  public int pin(String[] argv) throws IOException {
     if (argv.length != 2) {
       System.out.println("Usage: tfs pin <path>");
       return -1;
@@ -436,15 +427,13 @@ public class TFsShell implements Closeable {
   }
 
   /**
-   * Renames a file or directory specified by argv. Will fail if the new path name already
-   * exists.
+   * Renames a file or directory specified by argv. Will fail if the new path name already exists.
    * 
-   * @param argv
-   *          [] Array of arguments given by the user's input from the terminal
+   * @param argv [] Array of arguments given by the user's input from the terminal
    * @return 0 if command is successful, -1 if an error occurred.
    * @throws IOException
    */
-  public int rename(String argv[]) throws IOException {
+  public int rename(String[] argv) throws IOException {
     if (argv.length != 3) {
       System.out.println("Usage: tfs mv <src> <dst>");
       return -1;
@@ -460,7 +449,7 @@ public class TFsShell implements Closeable {
     }
   }
 
-  public int report(String argv[]) throws IOException {
+  public int report(String[] argv) throws IOException {
     if (argv.length != 2) {
       System.out.println("Usage: tfs report <path>");
       return -1;
@@ -473,7 +462,7 @@ public class TFsShell implements Closeable {
     return 0;
   }
 
-  public int request(String argv[]) throws IOException {
+  public int request(String[] argv) throws IOException {
     if (argv.length != 3) {
       System.out.println("Usage: tfs request <tachyonaddress> <dependencyId>");
       return -1;
@@ -487,15 +476,14 @@ public class TFsShell implements Closeable {
   }
 
   /**
-   * Removes the file or directory specified by argv. Will remove all files and directories in
-   * the directory if a directory is specified.
+   * Removes the file or directory specified by argv. Will remove all files and directories in the
+   * directory if a directory is specified.
    * 
-   * @param argv
-   *          [] Array of arguments given by the user's input from the terminal
+   * @param argv [] Array of arguments given by the user's input from the terminal
    * @return 0 if command is successful, -1 if an error occurred.
    * @throws IOException
    */
-  public int rm(String argv[]) throws IOException {
+  public int rm(String[] argv) throws IOException {
     if (argv.length != 2) {
       System.out.println("Usage: tfs rm <path>");
       return -1;
@@ -511,14 +499,13 @@ public class TFsShell implements Closeable {
   }
 
   /**
-   * Method which determines how to handle the user's request, will display usage help to the
-   * user if command format is incorrect.
+   * Method which determines how to handle the user's request, will display usage help to the user
+   * if command format is incorrect.
    * 
-   * @param argv
-   *          [] Array of arguments given by the user's input from the terminal
+   * @param argv [] Array of arguments given by the user's input from the terminal
    * @return 0 if command is successful, -1 if an error occurred
    */
-  public int run(String argv[]) {
+  public int run(String[] argv) {
     if (argv.length == 0) {
       printUsage();
       return -1;
@@ -575,14 +562,14 @@ public class TFsShell implements Closeable {
   /**
    * Prints the file's last 1KB of contents to the console.
    * 
-   * @param argv
-   *          [] Array of arguments given by the user's input from the terminal
+   * @param argv [] Array of arguments given by the user's input from the terminal
    * @return 0 if command is successful, -1 if an error occurred.f
    * @throws IOException
    */
-  public int tail(String argv[]) throws IOException {
+  public int tail(String[] argv) throws IOException {
     if (argv.length != 2) {
       System.out.println("Usage: tfs tail <path>");
+      return -1;
     }
     TachyonURI path = new TachyonURI(argv[1]);
     TachyonFS tachyonClient = createFS(path);
@@ -618,12 +605,11 @@ public class TFsShell implements Closeable {
   /**
    * Creates a 0 byte file specified by argv.
    * 
-   * @param argv
-   *          [] Array of arguments given by the user's input from the terminal
+   * @param argv [] Array of arguments given by the user's input from the terminal
    * @return 0 if command if successful, -1 if an error occurred.
    * @throws IOException
    */
-  public int touch(String argv[]) throws IOException {
+  public int touch(String[] argv) throws IOException {
     if (argv.length != 2) {
       System.out.println("Usage: tfs touch <path>");
       return -1;
@@ -641,12 +627,11 @@ public class TFsShell implements Closeable {
    * Unpins the given file or folder (recursively unpinning all children if a folder). Pinned files
    * are never evicted from memory, so this method will allow such files to be evicted.
    * 
-   * @param argv
-   *          [] Array of arguments given by the user's input from the terminal
+   * @param argv [] Array of arguments given by the user's input from the terminal
    * @return 0 if command is successful, -1 if an error occurred.
    * @throws IOException
    */
-  public int unpin(String argv[]) throws IOException {
+  public int unpin(String[] argv) throws IOException {
     if (argv.length != 2) {
       System.out.println("Usage: tfs unpin <path>");
       return -1;

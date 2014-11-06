@@ -1,7 +1,5 @@
 package tachyon.client;
 
-import java.io.IOException;
-
 /**
  * Different write types for a TachyonFile.
  */
@@ -27,30 +25,6 @@ public enum WriteType {
    */
   ASYNC_THROUGH(5);
 
-  /**
-   * Parse the write type
-   * 
-   * @param op
-   *          the String format of the write type
-   * @return the write type
-   * @throws IOException
-   */
-  public static WriteType getOpType(String op) throws IOException {
-    if (op.equals("MUST_CACHE")) {
-      return MUST_CACHE;
-    } else if (op.equals("TRY_CACHE")) {
-      return TRY_CACHE;
-    } else if (op.equals("CACHE_THROUGH")) {
-      return CACHE_THROUGH;
-    } else if (op.equals("THROUGH")) {
-      return THROUGH;
-    } else if (op.equals("ASYNC_THROUGH")) {
-      return ASYNC_THROUGH;
-    }
-
-    throw new IOException("Unknown WriteType : " + op);
-  }
-
   private final int mValue;
 
   private WriteType(int value) {
@@ -74,8 +48,7 @@ public enum WriteType {
   }
 
   /**
-   * @return true if the write type is one of MUST_CACHE, CACHE_THROUGH,
-   *         TRY_CACHE, or ASYNC_THROUGH
+   * @return true if the write type is one of MUST_CACHE, CACHE_THROUGH, TRY_CACHE, or ASYNC_THROUGH
    */
   public boolean isCache() {
     return (mValue == MUST_CACHE.mValue) || (mValue == CACHE_THROUGH.mValue)

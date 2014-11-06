@@ -31,7 +31,6 @@ import tachyon.master.LocalTachyonCluster;
 import tachyon.thrift.ClientBlockInfo;
 import tachyon.thrift.FileAlreadyExistException;
 import tachyon.thrift.InvalidPathException;
-import tachyon.util.NetworkUtils;
 import tachyon.worker.DataServerMessage;
 
 /**
@@ -47,7 +46,7 @@ public class DataServerTest {
     // creates a new instance of DataServerTest for each network type
     List<Object[]> list = new ArrayList<Object[]>();
     for (final NetworkType type : NetworkType.values()) {
-      list.add(new Object[] { type });
+      list.add(new Object[] {type});
     }
     return list;
   }
@@ -183,8 +182,8 @@ public class DataServerTest {
   }
 
   /**
-   * Create a new socket to the data port and send a block request. The returned value is
-   * the response from the server.
+   * Create a new socket to the data port and send a block request. The returned value is the
+   * response from the server.
    */
   private DataServerMessage request(final ClientBlockInfo block, final long offset,
       final long length) throws IOException {

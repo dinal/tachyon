@@ -5,32 +5,32 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.ObjectWriter;
 
 import tachyon.Constants;
+import tachyon.TachyonURI;
 import tachyon.UnderFileSystem;
 
 /**
  * Master data image.
  */
 public class Image {
-  private static final Logger LOG = Logger.getLogger(Constants.LOGGER_TYPE);
+  private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
 
   /**
    * Write a new image to path. This method assumes having a lock on the master info.
    * 
-   * @param info
-   *          the master info to generate the image
-   * @param path
-   *          the new image path
+   * @param info the master info to generate the image
+   * @param path the new image path
    * @throws IOException
    */
   public static void create(MasterInfo info, String path) throws IOException {
     String tPath = path + ".tmp";
-    String parentFolder = path.substring(0, path.lastIndexOf(Constants.PATH_SEPARATOR));
+    String parentFolder = path.substring(0, path.lastIndexOf(TachyonURI.SEPARATOR));
     LOG.info("Creating the image file: " + tPath);
     UnderFileSystem ufs = UnderFileSystem.get(path);
     if (!ufs.exists(parentFolder)) {
@@ -57,10 +57,8 @@ public class Image {
   /**
    * Load an image into the masterinfo.
    * 
-   * @param info
-   *          the masterinfo to fill.
-   * @param path
-   *          the data to load
+   * @param info the masterinfo to fill.
+   * @param path the data to load
    * @throws IOException
    */
   public static void load(MasterInfo info, String path) throws IOException {
@@ -73,7 +71,7 @@ public class Image {
     DataInputStream imageIs = new DataInputStream(ufs.open(path));
     JsonParser parser = JsonObject.createObjectMapper().getFactory().createParser(imageIs);
 
-    info.loadImage(parser, path);
+    info.loadImage(parser, new TachyonURI(path));
     imageIs.close();
     ufs.close();
   }
@@ -81,10 +79,8 @@ public class Image {
   /**
    * Rename the src to the dst. Only used to rename the Image.
    * 
-   * @param src
-   *          The src image path
-   * @param dst
-   *          The dst image path
+   * @param src The src image path
+   * @param dst The dst image path
    * @throws IOException
    */
   public static void rename(String src, String dst) throws IOException {

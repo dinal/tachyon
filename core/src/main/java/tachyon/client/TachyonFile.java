@@ -2,8 +2,8 @@ package tachyon.client;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.io.InputStream;
+import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
@@ -11,7 +11,8 @@ import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import tachyon.Constants;
 import tachyon.TachyonURI;
@@ -30,11 +31,11 @@ import tachyon.util.NetworkUtils;
  * Tachyon File.
  */
 public class TachyonFile implements Comparable<TachyonFile> {
-  private static final Logger LOG = Logger.getLogger(Constants.LOGGER_TYPE);
+  private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
 
   final TachyonFS mTachyonFS;
   final int mFileId;
-  private final UserConf USER_CONF = UserConf.get();
+  private final UserConf mUserConf = UserConf.get();
 
   private Object mUFSConf = null;
 
@@ -405,7 +406,7 @@ public class TachyonFile implements Comparable<TachyonFile> {
         }
 
         FileChannel localFileChannel = localFile.getChannel();
-        ByteBuffer buf = localFileChannel.map(FileChannel.MapMode.READ_ONLY, offset, len);
+        final ByteBuffer buf = localFileChannel.map(FileChannel.MapMode.READ_ONLY, offset, len);
         localFileChannel.close();
         localFile.close();
         mTachyonFS.accessLocalBlock(blockId);
@@ -504,7 +505,7 @@ public class TachyonFile implements Comparable<TachyonFile> {
       long offset = blockIndex * length;
       inputStream.skip(offset);
 
-      byte buffer[] = new byte[USER_CONF.FILE_BUFFER_BYTES * 4];
+      byte[] buffer = new byte[mUserConf.FILE_BUFFER_BYTES * 4];
 
       BlockOutStream bos = new BlockOutStream(this, WriteType.TRY_CACHE, blockIndex);
       try {
@@ -520,7 +521,7 @@ public class TachyonFile implements Comparable<TachyonFile> {
                 length = 0;
               }
             } catch (IOException e) {
-              LOG.warn(e);
+              LOG.warn(e.getMessage(), e);
               succeed = false;
               break;
             }
@@ -534,7 +535,7 @@ public class TachyonFile implements Comparable<TachyonFile> {
         }
       }
     } catch (IOException e) {
-      LOG.warn(e);
+      LOG.warn(e.getMessage(), e);
       return false;
     }
 
@@ -543,23 +544,8 @@ public class TachyonFile implements Comparable<TachyonFile> {
 
   /**
    * Rename this file
-   *
-   * @param path
-   *          the new name
-   * @return true if succeed, false otherwise
-   * @throws IOException
-   * @deprecated use {@link #rename(TachyonURI)} instead
-   */
-  @Deprecated
-  public boolean rename(String path) throws IOException {
-    return rename(new TachyonURI(path));
-  }
-
-  /**
-   * Rename this file
-   *
-   * @param path
-   *          the new name
+   * 
+   * @param path the new name
    * @return true if succeed, false otherwise
    * @throws IOException
    */
@@ -570,7 +556,7 @@ public class TachyonFile implements Comparable<TachyonFile> {
   private ByteBuffer retrieveRemoteByteBuffer(InetSocketAddress address, long blockId)
       throws IOException {
     RemoteBlockReader reader;
-    if (USER_CONF.NETWORK_TYPE == NetworkType.RDMA) {
+    if (UserConf.get().NETWORK_TYPE == NetworkType.RDMA) {
       reader = new RDMARemoteBlockReader();
     } else {
       reader = new TCPRemoteBlockReader();

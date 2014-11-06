@@ -11,14 +11,10 @@ public class LocalBlockInStream extends BlockInStream {
   private ByteBuffer mBuffer = null;
 
   /**
-   * @param file
-   *          the file the block belongs to
-   * @param readType
-   *          the InStream's read type
-   * @param blockIndex
-   *          the index of the block in the file
-   * @param buf
-   *          the buffer of the whole block in local memory
+   * @param file the file the block belongs to
+   * @param readType the InStream's read type
+   * @param blockIndex the index of the block in the file
+   * @param buf the buffer of the whole block in local memory
    * @throws IOException
    */
   LocalBlockInStream(TachyonFile file, ReadType readType, int blockIndex, TachyonByteBuffer buf)
@@ -26,7 +22,7 @@ public class LocalBlockInStream extends BlockInStream {
     super(file, readType, blockIndex);
 
     mTachyonBuffer = buf;
-    mBuffer = mTachyonBuffer.DATA;
+    mBuffer = mTachyonBuffer.mData;
   }
 
   @Override
@@ -47,12 +43,12 @@ public class LocalBlockInStream extends BlockInStream {
   }
 
   @Override
-  public int read(byte b[]) throws IOException {
+  public int read(byte[] b) throws IOException {
     return read(b, 0, b.length);
   }
 
   @Override
-  public int read(byte b[], int off, int len) throws IOException {
+  public int read(byte[] b, int off, int len) throws IOException {
     if (b == null) {
       throw new NullPointerException();
     } else if (off < 0 || len < 0 || len > b.length - off) {
@@ -73,7 +69,10 @@ public class LocalBlockInStream extends BlockInStream {
   @Override
   public void seek(long pos) throws IOException {
     if (pos < 0) {
-      throw new IOException("pos is negative: " + pos);
+      throw new IOException("Seek position is negative: " + pos);
+    } else if (pos > mBuffer.limit()) {
+      throw new IOException("Seek position is past buffer limit: " + pos + ", Buffer Size = "
+          + mBuffer.limit());
     }
     mBuffer.position((int) pos);
   }

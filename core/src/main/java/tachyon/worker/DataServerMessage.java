@@ -7,7 +7,8 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.SocketChannel;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
 
@@ -23,7 +24,7 @@ public class DataServerMessage {
   public static final short DATA_SERVER_REQUEST_MESSAGE = 1;
   public static final short DATA_SERVER_RESPONSE_MESSAGE = 2;
 
-  private static final Logger LOG = Logger.getLogger(Constants.LOGGER_TYPE);
+  private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
   
   private static final int HEADER_LENGTH = 26;
 
@@ -116,7 +117,7 @@ public class DataServerMessage {
         }
 
         String filePath = CommonUtils.concat(WorkerConf.get().DATA_FOLDER, blockId);
-        ret.LOG.info("Try to response remote request by reading from " + filePath);
+        LOG.info("Try to response remote request by reading from " + filePath);
         RandomAccessFile file = new RandomAccessFile(filePath, "r");
 
         long fileLength = file.length();
@@ -148,7 +149,7 @@ public class DataServerMessage {
         file.close();
         ret.mIsMessageReady = true;
         ret.generateHeader();
-        ret.LOG.info("Response remote request by reading from " + filePath + " preparation done.");
+        LOG.info("Response remote request by reading from " + filePath + " preparation done.");
       } catch (Exception e) {
         // TODO This is a trick for now. The data may have been removed before remote retrieving.
         ret.mBlockId = -ret.mBlockId;
@@ -157,7 +158,7 @@ public class DataServerMessage {
         ret.mData = ByteBuffer.allocate(0);
         ret.mIsMessageReady = true;
         ret.generateHeader();
-        ret.LOG.error("The file is not here : " + e.getMessage(), e);
+        LOG.error("The file is not here : " + e.getMessage(), e);
       }
     } else {
       ret.mHeader = ByteBuffer.allocate(HEADER_LENGTH);
@@ -347,13 +348,15 @@ public class DataServerMessage {
   public int recv(InputStream input) throws IOException {
     isSend(false);
     int numRead = input.read(mHeader.array());
-    if (numRead == -1)
+    if (numRead == -1) {
       return numRead;
+    }
     mHeader.position(numRead);
     parseHeaderFields();
     numRead = input.read(mData.array());
-    if (numRead == -1)
+    if (numRead == -1) {
       return numRead;
+    }
     mData.position(numRead);
     LOG.info("after read " + mData + " numRead:" + numRead);
     if (mData.remaining() == 0) {

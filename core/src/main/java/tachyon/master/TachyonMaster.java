@@ -3,17 +3,19 @@ package tachyon.master;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
-import org.apache.log4j.Logger;
 import org.apache.thrift.server.TServer;
 import org.apache.thrift.server.TThreadedSelectorServer;
 import org.apache.thrift.transport.TNonblockingServerSocket;
 import org.apache.thrift.transport.TTransportException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 
 import tachyon.Constants;
 import tachyon.LeaderSelectorClient;
+import tachyon.TachyonURI;
 import tachyon.UnderFileSystem;
 import tachyon.Version;
 import tachyon.conf.CommonConf;
@@ -27,7 +29,7 @@ import tachyon.web.UIWebServer;
  * Entry point for the Master program.
  */
 public class TachyonMaster {
-  private static final Logger LOG = Logger.getLogger(Constants.LOGGER_TYPE);
+  private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
 
   public static void main(String[] args) {
     if (args.length != 0) {
@@ -90,7 +92,7 @@ public class TachyonMaster {
       mMasterAddress = new InetSocketAddress(NetworkUtils.getFqdnHost(address), mPort);
       String journalFolder = MasterConf.get().JOURNAL_FOLDER;
       Preconditions.checkState(isFormatted(journalFolder, MasterConf.get().FORMAT_FILE_PREFIX),
-          "Tachyon was not formatted!");
+          "Tachyon was not formatted! The journal folder is " + journalFolder);
       mJournal = new Journal(journalFolder, "image.data", "log.data");
       mMasterInfo = new MasterInfo(mMasterAddress, mJournal);
 
@@ -102,6 +104,7 @@ public class TachyonMaster {
             new LeaderSelectorClient(conf.ZOOKEEPER_ADDRESS, conf.ZOOKEEPER_ELECTION_PATH,
                 conf.ZOOKEEPER_LEADER_PATH, name);
         mEditLogProcessor = new EditLogProcessor(mJournal, journalFolder, mMasterInfo);
+        // TODO move this to executor service when the shared thread patch goes in
         Thread logProcessor = new Thread(mEditLogProcessor);
         logProcessor.start();
       }
@@ -128,8 +131,8 @@ public class TachyonMaster {
   }
 
   private boolean isFormatted(String folder, String path) throws IOException {
-    if (!folder.endsWith(Constants.PATH_SEPARATOR)) {
-      folder += Constants.PATH_SEPARATOR;
+    if (!folder.endsWith(TachyonURI.SEPARATOR)) {
+      folder += TachyonURI.SEPARATOR;
     }
     UnderFileSystem ufs = UnderFileSystem.get(folder);
     String[] files = ufs.list(folder);
