@@ -7,7 +7,6 @@ import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 
 import org.apache.log4j.Logger;
-
 import org.accelio.jxio.jxioConnection.JxioConnection;
 
 import tachyon.Constants;
@@ -18,8 +17,8 @@ import tachyon.worker.DataServerMessage;
 public class RDMARemoteBlockReader implements RemoteBlockReader {
 
   private static final Logger LOG = Logger.getLogger(Constants.LOGGER_TYPE);
-  private final UserConf USER_CONF = UserConf.get();
-  private final String uriFormat = "rdma://%s:%d/blockId=%d&offset=%d&length=%d";
+  private static String network = setNetwork();
+  private final String uriFormat = network+"://%s:%d/blockId=%d&offset=%d&length=%d";
 
   @Override
   public ByteBuffer readRemoteBlock(String host, int port, long blockId, long offset, long length)
@@ -28,7 +27,7 @@ public class RDMARemoteBlockReader implements RemoteBlockReader {
       URI uri = new URI(String.format(uriFormat, host, port, blockId, offset, length));
       JxioConnection jc = new JxioConnection(uri);
       try {
-        jc.setRcvSize(655360); // 10 buffers in msg pool
+        jc.setRcvSize(Constants.CLIENT_MSGPOOL_SIZE); // 10 buffers in msg pool
         InputStream input = jc.getInputStream();
         LOG.info("Connected to remote machine " + uri);
 
@@ -54,5 +53,13 @@ public class RDMARemoteBlockReader implements RemoteBlockReader {
     } catch (URISyntaxException e) {
       throw new IOException("rdma uri could not be resolved");
     }
+  }
+  
+  public static String setNetwork() {
+    String net = System.getProperty("tachyon.jxio.network");
+    if (net == null) {
+      net = "rdma";
+    }
+    return net;
   }
 }

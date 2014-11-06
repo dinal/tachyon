@@ -1,25 +1,11 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements. See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.apache.org/licenses/LICENSE-2.0
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package tachyon.conf;
 
 import com.google.common.base.Optional;
 
 import tachyon.Constants;
-import tachyon.NetworkType;
 import tachyon.util.CommonUtils;
 import tachyon.util.NetworkUtils;
+import tachyon.NetworkType;
 import tachyon.worker.netty.ChannelType;
 import tachyon.worker.netty.FileTransferType;
 
@@ -42,6 +28,7 @@ public class WorkerConf extends Utils {
   }
 
   public final String MASTER_HOSTNAME;
+
   public final int MASTER_PORT;
   public final int PORT;
   public final int DATA_PORT;
@@ -52,18 +39,16 @@ public class WorkerConf extends Utils {
   public final int SELECTOR_THREADS;
   public final int QUEUE_SIZE_PER_SELECTOR;
   public final int SERVER_THREADS;
-
   public final int USER_TIMEOUT_MS;
   public final String USER_TEMP_RELATIVE_FOLDER = "users";
 
   public final int WORKER_CHECKPOINT_THREADS;
-
   public final int WORKER_PER_THREAD_CHECKPOINT_CAP_MB_SEC;
 
   public final NetworkType NETWORK_TYPE;
+
   public final ChannelType NETTY_CHANNEL_TYPE;
   public final FileTransferType NETTY_FILE_TRANSFER_TYPE;
-
   public final int NETTY_HIGH_WATER_MARK;
   public final int NETTY_LOW_WATER_MARK;
   public final Optional<Integer> NETTY_BACKLOG;
@@ -88,8 +73,7 @@ public class WorkerConf extends Utils {
     SELECTOR_THREADS = getIntProperty("tachyon.worker.selector.threads", 3);
     QUEUE_SIZE_PER_SELECTOR = getIntProperty("tachyon.worker.queue.size.per.selector", 3000);
     SERVER_THREADS =
-        getIntProperty("tachyon.worker.server.threads",
-            Runtime.getRuntime().availableProcessors());
+        getIntProperty("tachyon.worker.server.threads", Runtime.getRuntime().availableProcessors());
     USER_TIMEOUT_MS = getIntProperty("tachyon.worker.user.timeout.ms", 10 * Constants.SECOND_MS);
 
     WORKER_CHECKPOINT_THREADS = getIntProperty("tachyon.worker.checkpoint.threads", 1);
@@ -101,7 +85,6 @@ public class WorkerConf extends Utils {
         getEnumProperty("tachyon.worker.network.netty.channel", ChannelType.defaultType());
     NETTY_FILE_TRANSFER_TYPE =
         getEnumProperty("tachyon.worker.network.netty.file.transfer", FileTransferType.MAPPED);
-
     NETTY_HIGH_WATER_MARK =
         getIntProperty("tachyon.worker.network.netty.watermark.high", 32 * 1024);
     NETTY_LOW_WATER_MARK = getIntProperty("tachyon.worker.network.netty.watermark.low", 8 * 1024);
@@ -110,7 +93,7 @@ public class WorkerConf extends Utils {
     NETTY_SEND_BUFFER =
         Optional.fromNullable(getIntegerProperty("tachyon.worker.network.netty.buffer.send", null));
     NETTY_RECIEVE_BUFFER =
-        Optional.fromNullable(getIntegerProperty("tachyon.worker.network.netty.buffer.recieve",
+        Optional.fromNullable(getIntegerProperty("tachyon.worker.network.netty.buffer.receive",
             null));
   }
 }

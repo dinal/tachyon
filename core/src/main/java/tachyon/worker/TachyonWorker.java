@@ -2,8 +2,6 @@ package tachyon.worker;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 
 import org.apache.log4j.Logger;
@@ -15,7 +13,6 @@ import org.apache.thrift.transport.TTransportException;
 import com.google.common.base.Throwables;
 
 import tachyon.Constants;
-import tachyon.NetworkType;
 import tachyon.Users;
 import tachyon.Version;
 import tachyon.conf.CommonConf;
@@ -39,22 +36,14 @@ public class TachyonWorker implements Runnable {
   /**
    * Create a new TachyonWorker
    * 
-   * @param masterAddress
-   *          The TachyonMaster's address
-   * @param workerAddress
-   *          This TachyonWorker's address
-   * @param dataPort
-   *          This TachyonWorker's data server's port
-   * @param selectorThreads
-   *          The number of selector threads of the worker's thrift server
-   * @param acceptQueueSizePerThreads
-   *          The accept queue size per thread of the worker's thrift server
-   * @param workerThreads
-   *          The number of threads of the worker's thrift server
-   * @param localFolder
-   *          This TachyonWorker's local folder's path
-   * @param spaceLimitBytes
-   *          The maximum memory space this TachyonWorker can use, in bytes
+   * @param masterAddress The TachyonMaster's address
+   * @param workerAddress This TachyonWorker's address
+   * @param dataPort This TachyonWorker's data server's port
+   * @param selectorThreads The number of selector threads of the worker's thrift server
+   * @param acceptQueueSizePerThreads The accept queue size per thread of the worker's thrift server
+   * @param workerThreads The number of threads of the worker's thrift server
+   * @param localFolder This TachyonWorker's local folder's path
+   * @param spaceLimitBytes The maximum memory space this TachyonWorker can use, in bytes
    * @return The new TachyonWorker
    */
   public static synchronized TachyonWorker createWorker(InetSocketAddress masterAddress,
@@ -67,22 +56,14 @@ public class TachyonWorker implements Runnable {
   /**
    * Create a new TachyonWorker
    * 
-   * @param masterAddress
-   *          The TachyonMaster's address. e.g., localhost:19998
-   * @param workerAddress
-   *          This TachyonWorker's address. e.g., localhost:29998
-   * @param dataPort
-   *          This TachyonWorker's data server's port
-   * @param selectorThreads
-   *          The number of selector threads of the worker's thrift server
-   * @param acceptQueueSizePerThreads
-   *          The accept queue size per thread of the worker's thrift server
-   * @param workerThreads
-   *          The number of threads of the worker's thrift server
-   * @param localFolder
-   *          This TachyonWorker's local folder's path
-   * @param spaceLimitBytes
-   *          The maximum memory space this TachyonWorker can use, in bytes
+   * @param masterAddress The TachyonMaster's address. e.g., localhost:19998
+   * @param workerAddress This TachyonWorker's address. e.g., localhost:29998
+   * @param dataPort This TachyonWorker's data server's port
+   * @param selectorThreads The number of selector threads of the worker's thrift server
+   * @param acceptQueueSizePerThreads The accept queue size per thread of the worker's thrift server
+   * @param workerThreads The number of threads of the worker's thrift server
+   * @param localFolder This TachyonWorker's local folder's path
+   * @param spaceLimitBytes The maximum memory space this TachyonWorker can use, in bytes
    * @return The new TachyonWorker
    */
   public static synchronized TachyonWorker createWorker(String masterAddress, String workerAddress,
@@ -158,22 +139,14 @@ public class TachyonWorker implements Runnable {
   private final int mDataPort;
 
   /**
-   * @param masterAddress
-   *          The TachyonMaster's address.
-   * @param workerAddress
-   *          This TachyonWorker's address.
-   * @param dataPort
-   *          This TachyonWorker's data server's port
-   * @param selectorThreads
-   *          The number of selector threads of the worker's thrift server
-   * @param acceptQueueSizePerThreads
-   *          The accept queue size per thread of the worker's thrift server
-   * @param workerThreads
-   *          The number of threads of the worker's thrift server
-   * @param dataFolder
-   *          This TachyonWorker's local folder's path
-   * @param memoryCapacityBytes
-   *          The maximum memory space this TachyonWorker can use, in bytes
+   * @param masterAddress The TachyonMaster's address.
+   * @param workerAddress This TachyonWorker's address.
+   * @param dataPort This TachyonWorker's data server's port
+   * @param selectorThreads The number of selector threads of the worker's thrift server
+   * @param acceptQueueSizePerThreads The accept queue size per thread of the worker's thrift server
+   * @param workerThreads The number of threads of the worker's thrift server
+   * @param dataFolder This TachyonWorker's local folder's path
+   * @param memoryCapacityBytes The maximum memory space this TachyonWorker can use, in bytes
    */
   private TachyonWorker(InetSocketAddress masterAddress, InetSocketAddress workerAddress,
       int dataPort, int selectorThreads, int acceptQueueSizePerThreads, int workerThreads,
@@ -195,7 +168,6 @@ public class TachyonWorker implements Runnable {
     // deployment more complicated.
     InetSocketAddress dataAddress = new InetSocketAddress(workerAddress.getHostName(), dataPort);
     BlocksLocker blockLocker = new BlocksLocker(mWorkerStorage, Users.sDATASERVER_USER_ID);
-    LOG.info("creating worker type "+WorkerConf.get().NETWORK_TYPE);
     mDataServer = createDataServer(dataAddress, blockLocker);
     mDataPort = mDataServer.getPort();
 

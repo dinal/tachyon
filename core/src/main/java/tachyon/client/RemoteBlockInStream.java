@@ -3,6 +3,7 @@ package tachyon.client;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.List;
 
@@ -39,12 +40,9 @@ public class RemoteBlockInStream extends BlockInStream {
   private final UserConf USER_CONF = UserConf.get();
 
   /**
-   * @param file
-   *          the file the block belongs to
-   * @param readType
-   *          the InStream's read type
-   * @param blockIndex
-   *          the index of the block in the file
+   * @param file the file the block belongs to
+   * @param readType the InStream's read type
+   * @param blockIndex the index of the block in the file
    * @throws IOException
    */
   RemoteBlockInStream(TachyonFile file, ReadType readType, int blockIndex) throws IOException {
@@ -52,14 +50,10 @@ public class RemoteBlockInStream extends BlockInStream {
   }
 
   /**
-   * @param file
-   *          the file the block belongs to
-   * @param readType
-   *          the InStream's read type
-   * @param blockIndex
-   *          the index of the block in the file
-   * @param ufsConf
-   *          the under file system configuration
+   * @param file the file the block belongs to
+   * @param readType the InStream's read type
+   * @param blockIndex the index of the block in the file
+   * @param ufsConf the under file system configuration
    * @throws IOException
    */
   RemoteBlockInStream(TachyonFile file, ReadType readType, int blockIndex, Object ufsConf)
@@ -143,12 +137,12 @@ public class RemoteBlockInStream extends BlockInStream {
   }
 
   @Override
-  public int read(byte b[]) throws IOException {
+  public int read(byte[] b) throws IOException {
     return read(b, 0, b.length);
   }
 
   @Override
-  public int read(byte b[], int off, int len) throws IOException {
+  public int read(byte[] b, int off, int len) throws IOException {
     if (b == null) {
       throw new NullPointerException();
     } else if (off < 0 || len < 0 || len > b.length - off) {
@@ -225,12 +219,15 @@ public class RemoteBlockInStream extends BlockInStream {
             + NetworkUtils.getLocalIpAddress());
 
         try {
-          buf = retrieveRemoteByteBuffer(host, port, blockInfo.blockId, offset, len);
+          buf =
+              retrieveByteBufferFromRemoteMachine(new InetSocketAddress(host, port),
+                  blockInfo.blockId, offset, len);
           if (buf != null) {
             break;
           }
         } catch (IOException e) {
-          LOG.error(e);
+          LOG.error("Fail to retrieve byte buffer for block " + blockInfo.blockId + " from remote "
+              + host + ":" + port + " with offset " + offset + " and length " + len, e);
           buf = null;
         }
       }
@@ -242,8 +239,8 @@ public class RemoteBlockInStream extends BlockInStream {
     return buf;
   }
 
-  private ByteBuffer retrieveRemoteByteBuffer(String host, int port, long blockId, long offset,
-      long length) throws IOException {
+  private ByteBuffer retrieveByteBufferFromRemoteMachine(InetSocketAddress address, long blockId,
+      long offset, long length) throws IOException {
     RemoteBlockReader reader;
     LOG.info("Going to read remote buffer, network type:"+USER_CONF.NETWORK_TYPE);
     if (USER_CONF.NETWORK_TYPE == NetworkType.RDMA) {
@@ -251,12 +248,7 @@ public class RemoteBlockInStream extends BlockInStream {
     } else {
       reader = new TCPRemoteBlockReader();
     }
-    try {
-      return reader.readRemoteBlock(host, port, blockId, offset, length);
-    } catch (IOException e) {
-      LOG.error("got exception reading remote block: " + e.toString());
-      return null;
-    }
+    return reader.readRemoteBlock(address.getHostName(), address.getPort(), blockId, offset, length);
   }
 
   @Override

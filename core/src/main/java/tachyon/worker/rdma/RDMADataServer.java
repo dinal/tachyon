@@ -4,9 +4,10 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
-import com.google.common.base.Throwables;
-import org.apache.log4j.Logger;
 
+import com.google.common.base.Throwables;
+
+import org.apache.log4j.Logger;
 import org.accelio.jxio.EventName;
 import org.accelio.jxio.EventQueueHandler;
 import org.accelio.jxio.EventReason;
@@ -35,9 +36,14 @@ public class RDMADataServer implements Runnable, DataServer {
   private final ServerPortal listener;
   private ArrayList<MsgPool> msgPools = new ArrayList<MsgPool>();
   private final Thread mListenerThread;
+  private String network;
 
   public RDMADataServer(InetSocketAddress address, BlocksLocker locker) {
     LOG.info("Starting RDMADataServer @ " + address.toString());
+    network = System.getProperty("tachyon.jxio.network");
+    if (network == null) {
+      network = "rdma";
+    }
     URI uri = constructRdmaServerUri(address.getHostName(), address.getPort());
     mBlocksLocker = locker;
     MsgPool pool =
@@ -98,7 +104,7 @@ public class RDMADataServer implements Runnable, DataServer {
       if (session.getIsClosing()) {
         session.discardRequest(m);
       } else {
-        responseMessage.copy(m.getOut());
+        responseMessage.copyMsgToBuffer(m.getOut());
         try {
           session.sendResponse(m);
         } catch (JxioGeneralException e) {
@@ -181,16 +187,17 @@ public class RDMADataServer implements Runnable, DataServer {
 
   private URI constructRdmaServerUri(String host, int port) {
     URI uri;
+    String address = host + ":" + port;
     try {
-      if (WorkerConf.get().NETWORK_TYPE == NetworkType.RDMA) {
-        uri = new URI("rdma://" + host + ":" + port);
+      if (network.equals("rdma")) {
+        uri = new URI("rdma://" + address);
       } else {
-        uri = new URI("tcp://" + host + ":" + port);
+        uri = new URI("tcp://" + address);
       }
       return uri;
     } catch (URISyntaxException e) {
       LOG.error("could not resolve rdma data server uri, NetworkType is "
-          + WorkerConf.get().NETWORK_TYPE);
+          + WorkerConf.get().NETWORK_TYPE, e.getCause());
       throw Throwables.propagate(e);
     }
   }

@@ -24,7 +24,7 @@ public class DataServerMessage {
   public static final short DATA_SERVER_RESPONSE_MESSAGE = 2;
 
   private static final Logger LOG = Logger.getLogger(Constants.LOGGER_TYPE);
-
+  
   private static final int HEADER_LENGTH = 26;
 
   /**
@@ -43,8 +43,7 @@ public class DataServerMessage {
    * Create a block request message specified by the block's id, and the message is ready to be
    * sent.
    * 
-   * @param blockId
-   *          The id of the block
+   * @param blockId The id of the block
    * @return The created block request message
    */
   public static DataServerMessage createBlockRequestMessage(long blockId) {
@@ -56,13 +55,10 @@ public class DataServerMessage {
    * message is ready to be sent. If <code>len</code> is -1, it means request the data from offset
    * to the block's end.
    * 
-   * @param blockId
-   *          The id of the block
-   * @param offset
-   *          The requested data's offset in the block
-   * @param len
-   *          The length of the requested data. If it's -1, it means request the data from offset to
-   *          the block's end.
+   * @param blockId The id of the block
+   * @param offset The requested data's offset in the block
+   * @param len The length of the requested data. If it's -1, it means request the data from offset
+   *        to the block's end.
    * @return The created block request message
    */
   public static DataServerMessage createBlockRequestMessage(long blockId, long offset, long len) {
@@ -83,30 +79,25 @@ public class DataServerMessage {
    * Create a block response message specified by the block's id. If <code>toSend</code> is true, it
    * will prepare the data to be sent, otherwise the message is used to receive data.
    * 
-   * @param toSend
-   *          If true the message is to send the data, otherwise it's used to receive data.
-   * @param blockId
-   *          The id of the block
+   * @param toSend If true the message is to send the data, otherwise it's used to receive data.
+   * @param blockId The id of the block
    * @return The created block response message
    */
   public static DataServerMessage createBlockResponseMessage(boolean toSend, long blockId) {
     return createBlockResponseMessage(toSend, blockId, 0, -1);
   }
+
   /**
    * Create a block response message specified by the block's id, the offset and the length. If
    * <code>toSend</code> is true, it will prepare the data to be sent, otherwise the message is used
    * to receive data. If <code>len</code> is -1, it means response the data from offset to the
    * block's end.
    * 
-   * @param toSend
-   *          If true the message is to send the data, otherwise it's used to receive data
-   * @param blockId
-   *          The id of the block
-   * @param offset
-   *          The responded data's offset in the block
-   * @param len
-   *          The length of the responded data. If it's -1, it means respond the data from offset to
-   *          the block's end.
+   * @param toSend If true the message is to send the data, otherwise it's used to receive data
+   * @param blockId The id of the block
+   * @param offset The responded data's offset in the block
+   * @param len The length of the responded data. If it's -1, it means respond the data from offset
+   *        to the block's end.
    * @return The created block response message
    */
   public static DataServerMessage createBlockResponseMessage(boolean toSend, long blockId,
@@ -175,6 +166,7 @@ public class DataServerMessage {
 
     return ret;
   }
+
   private final boolean mToSendData;
   private final short mMessageType;
   private boolean mIsMessageReady;
@@ -195,10 +187,8 @@ public class DataServerMessage {
   /**
    * New a DataServerMessage. Notice that it's not ready.
    * 
-   * @param isToSendData
-   *          true if this is a send message, otherwise this is a recv message
-   * @param msgType
-   *          The message type
+   * @param isToSendData true if this is a send message, otherwise this is a recv message
+   * @param msgType The message type
    */
   private DataServerMessage(boolean isToSendData, short msgType) {
     mToSendData = isToSendData;
@@ -321,11 +311,10 @@ public class DataServerMessage {
   }
 
   /**
-   * Use this message to receive from the specified socket channel. Make sure this is a recv
-   * message and the message type is matched.
+   * Use this message to receive from the specified socket channel. Make sure this is a recv message
+   * and the message type is matched.
    * 
-   * @param socketChannel
-   *          The socket channel to receive from
+   * @param socketChannel The socket channel to receive from
    * @return The number of bytes read, possibly zero, or -1 if the channel has reached end-of-stream
    * @throws IOException
    */
@@ -343,6 +332,33 @@ public class DataServerMessage {
       }
     }
 
+    return numRead;
+  }
+
+  /**
+   * Use this message to receive from the specified inputStream. Make sure this is a recv
+   * message and the message type is matched.
+   * 
+   * @param input
+   *          The InputStream to receive from
+   * @return The number of bytes read, possibly zero, or -1 if the stream has reached end-of-stream
+   * @throws IOException
+   */
+  public int recv(InputStream input) throws IOException {
+    isSend(false);
+    int numRead = input.read(mHeader.array());
+    if (numRead == -1)
+      return numRead;
+    mHeader.position(numRead);
+    parseHeaderFields();
+    numRead = input.read(mData.array());
+    if (numRead == -1)
+      return numRead;
+    mData.position(numRead);
+    LOG.info("after read " + mData + " numRead:" + numRead);
+    if (mData.remaining() == 0) {
+      mIsMessageReady = true;
+    }
     return numRead;
   }
 
@@ -371,29 +387,10 @@ public class DataServerMessage {
     }
   }
 
-  public int recv(InputStream input) throws IOException {
-    isSend(false);
-    int numRead = input.read(mHeader.array());
-    if (numRead == -1)
-      return numRead;
-    mHeader.position(numRead);
-    parseHeaderFields();
-    numRead = input.read(mData.array());
-    if (numRead == -1)
-      return numRead;
-    mData.position(numRead);
-    LOG.info("after read " + mData + " numRead:" + numRead);
-    if (mData.remaining() == 0) {
-      mIsMessageReady = true;
-    }
-    return numRead;
-  }
-
   /**
    * Send this message to the specified socket channel. Make sure this is a send message.
    * 
-   * @param socketChannel
-   *          The socket channel to send to
+   * @param socketChannel The socket channel to send to
    * @throws IOException
    */
   public void send(SocketChannel socketChannel) throws IOException {
@@ -407,23 +404,24 @@ public class DataServerMessage {
   }
 
   /**
-   * copy message to buffer
+   * copy message header and data to buffer
    * 
    * @param buffer
    *          The buffer to copy message into
    */
-  public void copy(ByteBuffer buffer) {
+  public void copyMsgToBuffer(ByteBuffer buffer) {
     isSend(true);
     LOG.debug("copying " + buffer + " mHeader:" + mHeader + " mData:" + mData);
     try {
       buffer.put(mHeader);
       if (mHeader.remaining() == 0) {
+        int origLim = mData.limit();
         int remaining = buffer.remaining();
-        int lim = Math.min(mData.position() + remaining, mData.capacity());
+        int lim = Math.min(mData.position() + remaining, mData.limit());
         mData.limit(lim);
-        buffer.put(mData.slice());
+        buffer.put(mData);
         mData.position(lim);
-        mData.limit(mData.capacity());
+        mData.limit(origLim);
       }
     } catch (Exception e) {
       LOG.error("ERROR " + e.getMessage() + e.getMessage());
@@ -433,8 +431,7 @@ public class DataServerMessage {
   /**
    * Set the id of the block's locker.
    * 
-   * @param lockId
-   *          The id of the block's locker
+   * @param lockId The id of the block's locker
    */
   public void setLockId(int lockId) {
     mLockId = lockId;
