@@ -8,13 +8,11 @@ import java.nio.ByteBuffer;
 
 import org.apache.log4j.Logger;
 
-import com.mellanox.jxio.jxioConnection.JxioConnection;
+import org.accelio.jxio.jxioConnection.JxioConnection;
 
 import tachyon.Constants;
-import tachyon.NetworkType;
 import tachyon.client.RemoteBlockReader;
 import tachyon.conf.UserConf;
-import tachyon.util.NetworkUtils;
 import tachyon.worker.DataServerMessage;
 
 public class RDMABlockReader implements RemoteBlockReader {

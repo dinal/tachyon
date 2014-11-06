@@ -1,7 +1,5 @@
 package tachyon;
 
-import com.mellanox.jxio.jxioConnection.JxioConnectionConstants;
-
 /**
  * System wide constants
  */
@@ -47,8 +45,7 @@ public class Constants {
   public static final int WORKER_BLOCKS_QUEUE_SIZE = 10000;
 
   public static final String LOGGER_TYPE = System.getProperty("tachyon.logger.type", "");
-  public static final boolean DEBUG = Boolean
-      .valueOf(System.getProperty("tachyon.debug", "false"));
+  public static final boolean DEBUG = Boolean.valueOf(System.getProperty("tachyon.debug", "false"));
 
   /**
    * Version 1 [Before 0.5.0] Customized ser/de based.
@@ -56,10 +53,11 @@ public class Constants {
    * Version 3 [0.6.0] Add lastModificationTimeMs to inode.
    */
   public static final int JOURNAL_VERSION = 2;
-  
+
   /** jxio related **/
   public static final int CLIENT_BUF_COUNT = 10;
-  public static final int CLIENT_MSGPOOL_SIZE = JxioConnectionConstants.MSGPOOL_BUF_SIZE * CLIENT_BUF_COUNT;
+  public static final int CLIENT_MSGPOOL_SIZE =
+      org.accelio.jxio.jxioConnection.Constants.MSGPOOL_BUF_SIZE * CLIENT_BUF_COUNT;
   public static final int SERVER_INITIAL_BUF_COUNT = 500;
   public static final int SERVER_INC_BUF_COUNT = 50;
 }

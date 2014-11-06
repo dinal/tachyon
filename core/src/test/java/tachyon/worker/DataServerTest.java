@@ -19,7 +19,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import com.mellanox.jxio.jxioConnection.JxioConnection;
+import org.accelio.jxio.jxioConnection.JxioConnection;
 
 import tachyon.Constants;
 import tachyon.NetworkType;

@@ -7,19 +7,17 @@ import java.util.ArrayList;
 import com.google.common.base.Throwables;
 import org.apache.log4j.Logger;
 
-import com.mellanox.jxio.EventName;
-import com.mellanox.jxio.EventQueueHandler;
-import com.mellanox.jxio.EventReason;
-import com.mellanox.jxio.Msg;
-import com.mellanox.jxio.MsgPool;
-import com.mellanox.jxio.ServerPortal;
-import com.mellanox.jxio.ServerSession;
-import com.mellanox.jxio.ServerSession.SessionKey;
-import com.mellanox.jxio.WorkerCache.Worker;
-import com.mellanox.jxio.exceptions.JxioGeneralException;
-import com.mellanox.jxio.exceptions.JxioSessionClosedException;
-import com.mellanox.jxio.jxioConnection.JxioConnectionConstants;
-import com.mellanox.jxio.jxioConnection.impl.JxioResourceManager;
+import org.accelio.jxio.EventName;
+import org.accelio.jxio.EventQueueHandler;
+import org.accelio.jxio.EventReason;
+import org.accelio.jxio.Msg;
+import org.accelio.jxio.MsgPool;
+import org.accelio.jxio.ServerPortal;
+import org.accelio.jxio.ServerSession;
+import org.accelio.jxio.ServerSession.SessionKey;
+import org.accelio.jxio.WorkerCache.Worker;
+import org.accelio.jxio.exceptions.JxioGeneralException;
+import org.accelio.jxio.exceptions.JxioSessionClosedException;
 
 import tachyon.Constants;
 import tachyon.NetworkType;
@@ -28,7 +26,7 @@ import tachyon.worker.BlocksLocker;
 import tachyon.worker.DataServer;
 import tachyon.worker.DataServerMessage;
 
-public class RDMADataServer implements Runnable, DataServer  {
+public class RDMADataServer implements Runnable, DataServer {
 
   private static final Logger LOG = Logger.getLogger(Constants.LOGGER_TYPE);
   // The blocks locker manager.
@@ -42,12 +40,16 @@ public class RDMADataServer implements Runnable, DataServer  {
     LOG.info("Starting RDMADataServer @ " + address.toString());
     URI uri = constructRdmaServerUri(address.getHostName(), address.getPort());
     mBlocksLocker = locker;
-    MsgPool pool = new MsgPool(Constants.SERVER_INITIAL_BUF_COUNT, 0, JxioConnectionConstants.MSGPOOL_BUF_SIZE);
+    MsgPool pool =
+        new MsgPool(Constants.SERVER_INITIAL_BUF_COUNT, 0,
+            org.accelio.jxio.jxioConnection.Constants.MSGPOOL_BUF_SIZE);
     msgPools.add(pool);
-    eqh = new EventQueueHandler(new EqhCallbacks(Constants.SERVER_INC_BUF_COUNT, 0, JxioConnectionConstants.MSGPOOL_BUF_SIZE));
+    eqh =
+        new EventQueueHandler(new EqhCallbacks(Constants.SERVER_INC_BUF_COUNT, 0,
+            org.accelio.jxio.jxioConnection.Constants.MSGPOOL_BUF_SIZE));
     eqh.bindMsgPool(pool);
     listener = new ServerPortal(eqh, uri, new PortalServerCallbacks(), null);
-    mListenerThread  = new Thread(this);
+    mListenerThread = new Thread(this);
     mListenerThread.start();
   }
 
@@ -81,7 +83,8 @@ public class RDMADataServer implements Runnable, DataServer  {
       long blockId = Long.parseLong(params[0]);
       long offset = Long.parseLong(params[1].split("=")[1]);
       long length = Long.parseLong(params[2].split("=")[1]);
-      LOG.debug("got request for block id " + blockId+" with offset "+offset+" and length "+length);
+      LOG.debug("got request for block id " + blockId + " with offset " + offset + " and length "
+          + length);
       int lockId = mBlocksLocker.lock(blockId);
       responseMessage = DataServerMessage.createBlockResponseMessage(true, blockId, offset, length);
       responseMessage.setLockId(lockId);
@@ -99,10 +102,10 @@ public class RDMADataServer implements Runnable, DataServer  {
         try {
           session.sendResponse(m);
         } catch (JxioGeneralException e) {
-          LOG.error("Exception accured while sending messgae "+e.toString());
+          LOG.error("Exception accured while sending messgae " + e.toString());
           session.discardRequest(m);
         } catch (JxioSessionClosedException e) {
-          LOG.error("session was closed unexpectedly "+e.toString());
+          LOG.error("session was closed unexpectedly " + e.toString());
           session.discardRequest(m);
         }
       }
@@ -130,7 +133,7 @@ public class RDMADataServer implements Runnable, DataServer  {
   public void run() {
     int ret = eqh.runEventLoop(-1, -1);
     if (ret == -1) {
-      LOG.error(this.toString()+" exception occurred in eventLoop:"+eqh.getCaughtException());
+      LOG.error(this.toString() + " exception occurred in eventLoop:" + eqh.getCaughtException());
     }
     eqh.stop();
     eqh.close();
@@ -175,7 +178,7 @@ public class RDMADataServer implements Runnable, DataServer  {
   public int getPort() {
     return listener.getUri().getPort();
   }
-  
+
   private URI constructRdmaServerUri(String host, int port) {
     URI uri;
     try {
@@ -186,7 +189,8 @@ public class RDMADataServer implements Runnable, DataServer  {
       }
       return uri;
     } catch (URISyntaxException e) {
-      LOG.error("could not resolve rdma data server uri, NetworkType is "+WorkerConf.get().NETWORK_TYPE);
+      LOG.error("could not resolve rdma data server uri, NetworkType is "
+          + WorkerConf.get().NETWORK_TYPE);
       throw Throwables.propagate(e);
     }
   }

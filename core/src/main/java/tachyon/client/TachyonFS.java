@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
 
-import com.mellanox.jxio.jxioConnection.impl.JxioResourceManager;
+import org.accelio.jxio.jxioConnection.impl.JxioResourceManager;
 
 import tachyon.Constants;
 import tachyon.TachyonURI;

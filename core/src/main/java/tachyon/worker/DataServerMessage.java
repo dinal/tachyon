@@ -10,7 +10,6 @@ import java.nio.channels.SocketChannel;
 import org.apache.log4j.Logger;
 
 import com.google.common.base.Preconditions;
-import com.mellanox.jxio.Msg;
 
 import tachyon.Constants;
 import tachyon.client.TachyonByteBuffer;

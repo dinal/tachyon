@@ -4,8 +4,6 @@ import java.io.IOException;
 
 import org.apache.log4j.Logger;
 
-import com.mellanox.jxio.jxioConnection.impl.JxioResourceManager;
-
 import tachyon.Constants;
 import tachyon.Version;
 import tachyon.client.InStream;
