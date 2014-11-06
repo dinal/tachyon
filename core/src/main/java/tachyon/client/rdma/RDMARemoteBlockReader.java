@@ -15,7 +15,7 @@ import tachyon.client.RemoteBlockReader;
 import tachyon.conf.UserConf;
 import tachyon.worker.DataServerMessage;
 
-public class RDMABlockReader implements RemoteBlockReader {
+public class RDMARemoteBlockReader implements RemoteBlockReader {
 
   private static final Logger LOG = Logger.getLogger(Constants.LOGGER_TYPE);
   private final UserConf USER_CONF = UserConf.get();

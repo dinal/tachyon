@@ -16,8 +16,8 @@ import tachyon.Constants;
 import tachyon.TachyonURI;
 import tachyon.NetworkType;
 import tachyon.UnderFileSystem;
-import tachyon.client.rdma.RDMABlockReader;
-import tachyon.client.tcp.TCPBlockReader;
+import tachyon.client.rdma.RDMARemoteBlockReader;
+import tachyon.client.tcp.TCPRemoteBlockReader;
 import tachyon.conf.UserConf;
 import tachyon.thrift.ClientBlockInfo;
 import tachyon.thrift.ClientFileInfo;
@@ -584,9 +584,9 @@ public class TachyonFile implements Comparable<TachyonFile> {
       throws IOException {
     RemoteBlockReader reader;
     if (USER_CONF.NETWORK_TYPE == NetworkType.RDMA) {
-      reader = new RDMABlockReader();
+      reader = new RDMARemoteBlockReader();
     } else {
-      reader = new TCPBlockReader();
+      reader = new TCPRemoteBlockReader();
     }
     try {
       return reader.readRemoteBlock(host, port, blockId, 0, -1);

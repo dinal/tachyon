@@ -11,8 +11,8 @@ import org.apache.log4j.Logger;
 import tachyon.Constants;
 import tachyon.NetworkType;
 import tachyon.UnderFileSystem;
-import tachyon.client.rdma.RDMABlockReader;
-import tachyon.client.tcp.TCPBlockReader;
+import tachyon.client.rdma.RDMARemoteBlockReader;
+import tachyon.client.tcp.TCPRemoteBlockReader;
 import tachyon.conf.UserConf;
 import tachyon.thrift.ClientBlockInfo;
 import tachyon.thrift.NetAddress;
@@ -247,9 +247,9 @@ public class RemoteBlockInStream extends BlockInStream {
     RemoteBlockReader reader;
     LOG.info("Going to read remote buffer, network type:"+USER_CONF.NETWORK_TYPE);
     if (USER_CONF.NETWORK_TYPE == NetworkType.RDMA) {
-      reader = new RDMABlockReader();
+      reader = new RDMARemoteBlockReader();
     } else {
-      reader = new TCPBlockReader();
+      reader = new TCPRemoteBlockReader();
     }
     try {
       return reader.readRemoteBlock(host, port, blockId, offset, length);
