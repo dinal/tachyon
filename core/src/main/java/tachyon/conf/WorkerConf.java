@@ -5,7 +5,6 @@ import com.google.common.base.Optional;
 import tachyon.Constants;
 import tachyon.util.CommonUtils;
 import tachyon.util.NetworkUtils;
-import tachyon.NetworkType;
 import tachyon.worker.netty.ChannelType;
 import tachyon.worker.netty.FileTransferType;
 
@@ -33,6 +32,7 @@ public class WorkerConf extends Utils {
   public final int PORT;
   public final int DATA_PORT;
   public final String DATA_FOLDER;
+  public final Class<?> DATA_SERVER;
   public final long MEMORY_SIZE;
   public final long HEARTBEAT_TIMEOUT_MS;
   public final int TO_MASTER_HEARTBEAT_INTERVAL_MS;
@@ -44,8 +44,6 @@ public class WorkerConf extends Utils {
 
   public final int WORKER_CHECKPOINT_THREADS;
   public final int WORKER_PER_THREAD_CHECKPOINT_CAP_MB_SEC;
-
-  public final NetworkType NETWORK_TYPE;
 
   public final ChannelType NETTY_CHANNEL_TYPE;
   public final FileTransferType NETTY_FILE_TRANSFER_TYPE;
@@ -65,6 +63,8 @@ public class WorkerConf extends Utils {
     DATA_PORT =
         getIntProperty("tachyon.worker.data.port", Constants.DEFAULT_WORKER_DATA_SERVER_PORT);
     DATA_FOLDER = getProperty("tachyon.worker.data.folder", "/mnt/ramdisk");
+    DATA_SERVER =
+        getClass("tachyon.worker.data.server", tachyon.worker.netty.NettyDataServer.class);
     MEMORY_SIZE =
         CommonUtils.parseSpaceSize(getProperty("tachyon.worker.memory.size", (128 * Constants.MB)
             + ""));
@@ -82,7 +82,6 @@ public class WorkerConf extends Utils {
     WORKER_PER_THREAD_CHECKPOINT_CAP_MB_SEC =
         getIntProperty("tachyon.worker.per.thread.checkpoint.cap.mb.sec", Constants.SECOND_MS);
 
-    NETWORK_TYPE = getEnumProperty("tachyon.worker.network.type", NetworkType.NETTY);
     NETTY_BOSS_THREADS = getIntProperty("tachyon.worker.network.netty.boss.threads", 1);
     NETTY_WORKER_THREADS = getIntProperty("tachyon.worker.network.netty.worker.threads", 0);
     NETTY_CHANNEL_TYPE =

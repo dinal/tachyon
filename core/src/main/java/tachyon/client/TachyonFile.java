@@ -14,12 +14,12 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Preconditions;
+
 import tachyon.Constants;
 import tachyon.TachyonURI;
 import tachyon.NetworkType;
 import tachyon.UnderFileSystem;
-import tachyon.client.rdma.RDMARemoteBlockReader;
-import tachyon.client.tcp.TCPRemoteBlockReader;
 import tachyon.conf.UserConf;
 import tachyon.thrift.ClientBlockInfo;
 import tachyon.thrift.ClientFileInfo;
@@ -555,18 +555,12 @@ public class TachyonFile implements Comparable<TachyonFile> {
 
   private ByteBuffer retrieveRemoteByteBuffer(InetSocketAddress address, long blockId)
       throws IOException {
-    RemoteBlockReader reader;
-    if (UserConf.get().NETWORK_TYPE == NetworkType.RDMA) {
-      reader = new RDMARemoteBlockReader();
-    } else {
-      reader = new TCPRemoteBlockReader();
-    }
-    try {
-      return reader.readRemoteBlock(address.getHostName(), address.getPort(), blockId, 0, -1);
-    } catch (IOException e) {
-      LOG.error("got exception reading remote block: " + e.toString());
-      return null;
-    }
+    Object readerObj =
+        CommonUtils.createNewClassInstance(UserConf.get().REMOTE_BLOCK_READER, null, null);
+    Preconditions.checkArgument(readerObj instanceof RemoteBlockReader,
+        "Remote Block Reader is not configured properly.");
+    return ((RemoteBlockReader) readerObj).readRemoteBlock(address.getHostName(),
+        address.getPort(), blockId, 0, -1);
   }
 
   /**

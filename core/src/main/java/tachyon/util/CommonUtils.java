@@ -3,6 +3,7 @@ package tachyon.util;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.reflect.Constructor;
 import java.math.BigDecimal;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
@@ -24,6 +25,7 @@ import tachyon.Constants;
 import tachyon.TachyonURI;
 import tachyon.UnderFileSystem;
 import tachyon.thrift.InvalidPathException;
+import tachyon.worker.BlocksLocker;
 
 /**
  * Common utilities shared by all components in Tachyon.
@@ -474,6 +476,28 @@ public final class CommonUtils {
     if (path == null || path.isEmpty() || !path.startsWith(TachyonURI.SEPARATOR)
         || path.contains(" ")) {
       throw new InvalidPathException("Path " + path + " is invalid.");
+    }
+  }
+
+  /**
+   * Creates new instance of a class by calling a constructor that receives ctorClassArgs arguments
+   * 
+   * @param cls the class to create
+   * @param ctorClassArgs parameters type list of the constructor to initiate, if null default
+   * constructor will be called 
+   * @param ctorArgs the arguments to pass the constructor
+   * @return new class object or null if not successful
+   */
+  public static Object createNewClassInstance(Class<?> cls, Class<?>[] ctorClassArgs,
+      Object[] ctorArgs) {
+    try {
+      if (ctorClassArgs == null) {
+        return cls.newInstance();
+      }
+      Constructor<?> ctor = cls.getConstructor(ctorClassArgs);
+      return ctor.newInstance(ctorArgs);
+    } catch (Exception e) {
+      return null;
     }
   }
 }

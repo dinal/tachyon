@@ -189,7 +189,7 @@ public class RDMADataServer implements Runnable, DataServer {
       return new URI(TRANSPORT + "://" + host + ":" + port);
     } catch (URISyntaxException e) {
       LOG.error("could not resolve rdma data server uri, NetworkType is "
-          + WorkerConf.get().NETWORK_TYPE, e.getCause());
+          + TRANSPORT, e.getCause());
       throw Throwables.propagate(e);
     }
   }

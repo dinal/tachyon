@@ -1,6 +1,7 @@
 package tachyon.worker;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
@@ -11,6 +12,7 @@ import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 
 import tachyon.Constants;
@@ -24,9 +26,6 @@ import tachyon.thrift.NetAddress;
 import tachyon.thrift.WorkerService;
 import tachyon.util.CommonUtils;
 import tachyon.util.NetworkUtils;
-import tachyon.worker.netty.NettyDataServer;
-import tachyon.worker.nio.NIODataServer;
-import tachyon.worker.rdma.RDMADataServer;
 
 /**
  * Entry point for a worker daemon.
@@ -196,16 +195,14 @@ public class TachyonWorker implements Runnable {
 
   private DataServer createDataServer(final InetSocketAddress dataAddress,
       final BlocksLocker blockLocker) {
-    switch (WorkerConf.get().NETWORK_TYPE) {
-      case NIO:
-        return new NIODataServer(dataAddress, blockLocker);
-      case NETTY:
-        return new NettyDataServer(dataAddress, blockLocker);
-      case RDMA:
-        return new RDMADataServer(dataAddress, blockLocker);
-      default:
-        throw new AssertionError("Unknown network type: " + WorkerConf.get().NETWORK_TYPE);
-    }
+    Object dataServerObj =
+        CommonUtils.createNewClassInstance(WorkerConf.get().DATA_SERVER, new Class[] {
+            InetSocketAddress.class, BlocksLocker.class },
+            new Object[] { dataAddress, blockLocker });
+
+    Preconditions.checkArgument(dataServerObj instanceof DataServer,
+        "Data Server is not configured properly.");
+    return (DataServer) dataServerObj;
   }
 
   /**

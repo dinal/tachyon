@@ -2,6 +2,7 @@ package tachyon.client;
 
 import java.io.InputStream;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
@@ -10,11 +11,11 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Preconditions;
+
 import tachyon.Constants;
 import tachyon.NetworkType;
 import tachyon.UnderFileSystem;
-import tachyon.client.rdma.RDMARemoteBlockReader;
-import tachyon.client.tcp.TCPRemoteBlockReader;
 import tachyon.conf.UserConf;
 import tachyon.conf.WorkerConf;
 import tachyon.thrift.ClientBlockInfo;
@@ -242,15 +243,12 @@ public class RemoteBlockInStream extends BlockInStream {
 
   private ByteBuffer retrieveByteBufferFromRemoteMachine(InetSocketAddress address, long blockId,
       long offset, long length) throws IOException {
-    RemoteBlockReader reader;
-    LOG.info("Going to read remote buffer, network type:" + UserConf.get().NETWORK_TYPE);
-    if (UserConf.get().NETWORK_TYPE == NetworkType.RDMA) {
-      reader = new RDMARemoteBlockReader();
-    } else {
-      reader = new TCPRemoteBlockReader();
-    }
-    return reader.readRemoteBlock(address.getHostName(), address.getPort(),
-        blockId, offset, length);
+    Object readerObj =
+        CommonUtils.createNewClassInstance(UserConf.get().REMOTE_BLOCK_READER, null, null);
+    Preconditions.checkArgument(readerObj instanceof RemoteBlockReader,
+        "Remote Block Reader is not configured properly.");
+    return ((RemoteBlockReader) readerObj).readRemoteBlock(address.getHostName(),
+        address.getPort(), blockId, offset, length);
   }
 
   @Override
