@@ -31,21 +31,18 @@ import tachyon.worker.DataServerMessage;
 public class RDMADataServer implements Runnable, DataServer {
 
   private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
+  private static final String TRANSPORT = getTransport();
   // The blocks locker manager.
   private final BlocksLocker mBlocksLocker;
   private final Thread mListenerThread;
   private final EventQueueHandler mEqh;
   private final ServerPortal mListener;
   private ArrayList<MsgPool> mMsgPools = new ArrayList<MsgPool>();
-  private String mNetwork;
+  
 
   public RDMADataServer(InetSocketAddress address, BlocksLocker locker) {
-    LOG.info("Starting RDMADataServer @ " + address.toString());
-    mNetwork = System.getProperty("tachyon.jxio.network");
-    if (mNetwork == null) {
-      mNetwork = "rdma";
-    }
     URI uri = constructRdmaServerUri(address.getHostName(), address.getPort());
+    LOG.info("Starting RDMADataServer @ " + uri);
     mBlocksLocker = locker;
     MsgPool pool =
         new MsgPool(Constants.SERVER_INITIAL_BUF_COUNT, 0,
@@ -188,19 +185,20 @@ public class RDMADataServer implements Runnable, DataServer {
   }
 
   private URI constructRdmaServerUri(String host, int port) {
-    URI uri;
-    String address = host + ":" + port;
     try {
-      if (mNetwork.equals("rdma")) {
-        uri = new URI("rdma://" + address);
-      } else {
-        uri = new URI("tcp://" + address);
-      }
-      return uri;
+      return new URI(TRANSPORT + "://" + host + ":" + port);
     } catch (URISyntaxException e) {
       LOG.error("could not resolve rdma data server uri, NetworkType is "
           + WorkerConf.get().NETWORK_TYPE, e.getCause());
       throw Throwables.propagate(e);
     }
+  }
+  
+  private static String getTransport() {
+    String transport = System.getProperty("tachyon.jxio.transport");
+    if (transport == null) {
+      transport = "rdma";
+    }
+    return transport;
   }
 }

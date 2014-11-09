@@ -19,8 +19,8 @@ import tachyon.worker.DataServerMessage;
 public class RDMARemoteBlockReader implements RemoteBlockReader {
 
   private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
-  private static String sNetwork = setNetwork();
-  private final String mUriFormat = sNetwork + "://%s:%d/blockId=%d&offset=%d&length=%d";
+  private static final String TRANSPORT = getTransport();
+  private final String mUriFormat = TRANSPORT + "://%s:%d/blockId=%d&offset=%d&length=%d";
 
   @Override
   public ByteBuffer readRemoteBlock(String host, int port, long blockId, long offset, long length)
@@ -57,11 +57,11 @@ public class RDMARemoteBlockReader implements RemoteBlockReader {
     }
   }
   
-  public static String setNetwork() {
-    String net = System.getProperty("tachyon.jxio.network");
-    if (net == null) {
-      net = "rdma";
+  public static String getTransport() {
+    String transport = System.getProperty("tachyon.jxio.transport");
+    if (transport == null) {
+      transport = "rdma";
     }
-    return net;
+    return transport;
   }
 }
