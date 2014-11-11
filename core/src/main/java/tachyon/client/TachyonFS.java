@@ -15,8 +15,6 @@ import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.accelio.jxio.jxioConnection.impl.JxioResourceManager;
-
 import tachyon.Constants;
 import tachyon.TachyonURI;
 import tachyon.UnderFileSystem;
@@ -189,8 +187,6 @@ public class TachyonFS extends AbstractTachyonFS {
     if (mMasterClient != null) {
       mMasterClient.close();
     }
-    
-    JxioResourceManager.cleanCache();
   }
 
   /**
