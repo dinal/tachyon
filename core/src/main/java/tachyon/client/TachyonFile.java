@@ -18,7 +18,6 @@ import com.google.common.base.Preconditions;
 
 import tachyon.Constants;
 import tachyon.TachyonURI;
-import tachyon.NetworkType;
 import tachyon.UnderFileSystem;
 import tachyon.conf.UserConf;
 import tachyon.thrift.ClientBlockInfo;
@@ -555,11 +554,7 @@ public class TachyonFile implements Comparable<TachyonFile> {
 
   private ByteBuffer retrieveRemoteByteBuffer(InetSocketAddress address, long blockId)
       throws IOException {
-    Object readerObj =
-        CommonUtils.createNewClassInstance(UserConf.get().REMOTE_BLOCK_READER, null, null);
-    Preconditions.checkArgument(readerObj instanceof RemoteBlockReader,
-        "Remote Block Reader is not configured properly.");
-    return ((RemoteBlockReader) readerObj).readRemoteBlock(address.getHostName(),
+    return RemoteBlockReader.createRemoteBlockReader().readRemoteBlock(address.getHostName(),
         address.getPort(), blockId, 0, -1);
   }
 

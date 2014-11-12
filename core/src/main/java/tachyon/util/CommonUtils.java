@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
@@ -489,15 +490,12 @@ public final class CommonUtils {
    * @return new class object or null if not successful
    */
   public static Object createNewClassInstance(Class<?> cls, Class<?>[] ctorClassArgs,
-      Object[] ctorArgs) {
-    try {
-      if (ctorClassArgs == null) {
-        return cls.newInstance();
-      }
-      Constructor<?> ctor = cls.getConstructor(ctorClassArgs);
-      return ctor.newInstance(ctorArgs);
-    } catch (Exception e) {
-      return null;
+      Object[] ctorArgs) throws InstantiationException, IllegalAccessException,
+      NoSuchMethodException, SecurityException, InvocationTargetException {
+    if (ctorClassArgs == null) {
+      return cls.newInstance();
     }
+    Constructor<?> ctor = cls.getConstructor(ctorClassArgs);
+    return ctor.newInstance(ctorArgs);
   }
 }

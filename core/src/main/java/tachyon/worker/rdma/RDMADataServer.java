@@ -28,9 +28,11 @@ import tachyon.worker.BlocksLocker;
 import tachyon.worker.DataServer;
 import tachyon.worker.DataServerMessage;
 
-public class RDMADataServer implements Runnable, DataServer {
+public class RDMADataServer extends DataServer implements Runnable {
 
   private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
+  private static final int SERVER_INITIAL_BUF_COUNT = 500;
+  private static final int SERVER_INC_BUF_COUNT = 50;
   private static final String TRANSPORT = getTransport();
   // The blocks locker manager.
   private final BlocksLocker mBlocksLocker;
@@ -38,18 +40,17 @@ public class RDMADataServer implements Runnable, DataServer {
   private final EventQueueHandler mEqh;
   private final ServerPortal mListener;
   private ArrayList<MsgPool> mMsgPools = new ArrayList<MsgPool>();
-  
 
-  public RDMADataServer(InetSocketAddress address, BlocksLocker locker) {
+  public RDMADataServer(final InetSocketAddress address, final BlocksLocker locker) {
     URI uri = constructRdmaServerUri(address.getHostName(), address.getPort());
     LOG.info("Starting RDMADataServer @ " + uri);
     mBlocksLocker = locker;
     MsgPool pool =
-        new MsgPool(Constants.SERVER_INITIAL_BUF_COUNT, 0,
+        new MsgPool(SERVER_INITIAL_BUF_COUNT, 0,
             org.accelio.jxio.jxioConnection.Constants.MSGPOOL_BUF_SIZE);
     mMsgPools.add(pool);
     mEqh =
-        new EventQueueHandler(new EqhCallbacks(Constants.SERVER_INC_BUF_COUNT, 0,
+        new EventQueueHandler(new EqhCallbacks(SERVER_INC_BUF_COUNT, 0,
             org.accelio.jxio.jxioConnection.Constants.MSGPOOL_BUF_SIZE));
     mEqh.bindMsgPool(pool);
     mListener = new ServerPortal(mEqh, uri, new PortalServerCallbacks(), null);
@@ -188,12 +189,12 @@ public class RDMADataServer implements Runnable, DataServer {
     try {
       return new URI(TRANSPORT + "://" + host + ":" + port);
     } catch (URISyntaxException e) {
-      LOG.error("could not resolve rdma data server uri, NetworkType is "
-          + TRANSPORT, e.getCause());
+      LOG.error("could not resolve rdma data server uri, transport type is " + TRANSPORT,
+          e.getCause());
       throw Throwables.propagate(e);
     }
   }
-  
+
   private static String getTransport() {
     String transport = System.getProperty("tachyon.jxio.transport");
     if (transport == null) {

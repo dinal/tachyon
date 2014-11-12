@@ -8,7 +8,6 @@ import java.nio.ByteBuffer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.accelio.jxio.jxioConnection.JxioConnection;
 
 import tachyon.Constants;
@@ -16,9 +15,12 @@ import tachyon.client.RemoteBlockReader;
 import tachyon.conf.UserConf;
 import tachyon.worker.DataServerMessage;
 
-public class RDMARemoteBlockReader implements RemoteBlockReader {
+public class RDMARemoteBlockReader extends RemoteBlockReader {
 
   private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
+  public static final int CLIENT_BUF_COUNT = 10;
+  public static final int CLIENT_MSGPOOL_SIZE =
+      org.accelio.jxio.jxioConnection.Constants.MSGPOOL_BUF_SIZE * CLIENT_BUF_COUNT;
   private static final String TRANSPORT = getTransport();
   private final String mUriFormat = TRANSPORT + "://%s:%d/blockId=%d&offset=%d&length=%d";
 
@@ -29,7 +31,7 @@ public class RDMARemoteBlockReader implements RemoteBlockReader {
       URI uri = new URI(String.format(mUriFormat, host, port, blockId, offset, length));
       JxioConnection jc = new JxioConnection(uri);
       try {
-        jc.setRcvSize(Constants.CLIENT_MSGPOOL_SIZE); // 10 buffers in msg pool
+        jc.setRcvSize(CLIENT_MSGPOOL_SIZE); // 10 buffers in msg pool
         InputStream input = jc.getInputStream();
         LOG.info("Connected to remote machine " + uri);
 
@@ -56,7 +58,7 @@ public class RDMARemoteBlockReader implements RemoteBlockReader {
       throw new IOException("rdma uri could not be resolved");
     }
   }
-  
+
   public static String getTransport() {
     String transport = System.getProperty("tachyon.jxio.transport");
     if (transport == null) {

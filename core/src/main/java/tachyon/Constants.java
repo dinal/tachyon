@@ -50,10 +50,8 @@ public class Constants {
    */
   public static final int JOURNAL_VERSION = 2;
 
-  /** jxio related **/
-  public static final int CLIENT_BUF_COUNT = 10;
-  public static final int CLIENT_MSGPOOL_SIZE =
-      org.accelio.jxio.jxioConnection.Constants.MSGPOOL_BUF_SIZE * CLIENT_BUF_COUNT;
-  public static final int SERVER_INITIAL_BUF_COUNT = 500;
-  public static final int SERVER_INC_BUF_COUNT = 50;
+  public static final Class<?> DEFAULT_DATA_SERVER_CLASS =
+      tachyon.worker.netty.NettyDataServer.class;
+  public static final Class<?> DEFAULT_REMOTE_BLOCK_READER_CLASS =
+      tachyon.client.tcp.TCPRemoteBlockReader.class;
 }

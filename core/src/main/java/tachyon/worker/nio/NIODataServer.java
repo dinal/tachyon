@@ -27,7 +27,7 @@ import tachyon.worker.DataServerMessage;
  * The Server to serve data file read request from remote machines. The current implementation is
  * based on non-blocking NIO.
  */
-public class NIODataServer implements Runnable, DataServer {
+public class NIODataServer extends DataServer implements Runnable {
   private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
 
   // The host:port combination to listen on
@@ -57,7 +57,7 @@ public class NIODataServer implements Runnable, DataServer {
    * @param address The address of the data server.
    * @param locker The lock system for lock blocks.
    */
-  public NIODataServer(InetSocketAddress address, BlocksLocker locker) {
+  public NIODataServer(final InetSocketAddress address, final BlocksLocker locker) {
     LOG.info("Starting DataServer @ " + address);
     CommonConf.assertValidPort(address);
     mAddress = address;

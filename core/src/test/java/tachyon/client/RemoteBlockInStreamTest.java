@@ -14,8 +14,8 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import tachyon.NetworkType;
 import tachyon.TestUtils;
+import tachyon.conf.CommonConf;
 import tachyon.master.LocalTachyonCluster;
 
 /**
@@ -27,22 +27,30 @@ public class RemoteBlockInStreamTest {
   private static final int MAX_LEN = 255;
   private static final int DELTA = 33;
 
+  private final String mDataServerClass;
+  private final String mRemoteReaderClass;
+
   private LocalTachyonCluster mLocalTachyonCluster = null;
   private TachyonFS mTfs = null;
-  private final NetworkType mType;
-  
+
   @Parameterized.Parameters
   public static Collection<Object[]> data() {
     // creates a new instance of RemoteBlockInStreamTest for each network type
     List<Object[]> list = new ArrayList<Object[]>();
-    for (final NetworkType type : NetworkType.values()) {
-      list.add(new Object[] { type });
+    list.add(new Object[] { new String[] { "tachyon.worker.netty.NettyDataServer",
+        "tachyon.client.tcp.TCPRemoteBlockReader" } });
+    list.add(new Object[] { new String[] { "tachyon.worker.nio.NIODataServer",
+        "tachyon.client.tcp.TCPRemoteBlockReader" } });
+    if (CommonConf.get().JXIO_ENABLED) {
+      list.add(new Object[] { new String[] { "tachyon.worker.rdma.RDMADataServer",
+          "tachyon.client.rdma.RDMARemoteBlockReader" } });
     }
     return list;
   }
 
-  public RemoteBlockInStreamTest(NetworkType type) {
-    mType = type;
+  public RemoteBlockInStreamTest(String[] classes) {
+    mDataServerClass = classes[0];
+    mRemoteReaderClass = classes[1];
   }
 
   @Rule
@@ -53,16 +61,16 @@ public class RemoteBlockInStreamTest {
     mLocalTachyonCluster.stop();
     System.clearProperty("tachyon.user.quota.unit.bytes");
     System.clearProperty("tachyon.user.remote.read.buffer.size.byte");
-    System.clearProperty("tachyon.user.network.type");
-    System.clearProperty("tachyon.worker.network.type");
+    System.clearProperty("tachyon.user.remote.block.reader.class");
+    System.clearProperty("tachyon.worker.data.server.class");
   }
 
   @Before
   public final void before() throws IOException {
     System.setProperty("tachyon.user.quota.unit.bytes", "1000");
     System.setProperty("tachyon.user.remote.read.buffer.size.byte", "100");
-    System.setProperty("tachyon.user.network.type", mType.toString());
-    System.setProperty("tachyon.worker.network.type", mType.toString());
+    System.setProperty("tachyon.user.remote.block.reader.class", mRemoteReaderClass);
+    System.setProperty("tachyon.worker.data.server.class", mDataServerClass);
     mLocalTachyonCluster = new LocalTachyonCluster(10000);
     mLocalTachyonCluster.start();
     mTfs = mLocalTachyonCluster.getClient();

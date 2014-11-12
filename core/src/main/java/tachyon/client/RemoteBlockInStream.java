@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Preconditions;
 
 import tachyon.Constants;
-import tachyon.NetworkType;
 import tachyon.UnderFileSystem;
 import tachyon.conf.UserConf;
 import tachyon.conf.WorkerConf;
@@ -243,11 +242,8 @@ public class RemoteBlockInStream extends BlockInStream {
 
   private ByteBuffer retrieveByteBufferFromRemoteMachine(InetSocketAddress address, long blockId,
       long offset, long length) throws IOException {
-    Object readerObj =
-        CommonUtils.createNewClassInstance(UserConf.get().REMOTE_BLOCK_READER, null, null);
-    Preconditions.checkArgument(readerObj instanceof RemoteBlockReader,
-        "Remote Block Reader is not configured properly.");
-    return ((RemoteBlockReader) readerObj).readRemoteBlock(address.getHostName(),
+
+    return RemoteBlockReader.createRemoteBlockReader().readRemoteBlock(address.getHostName(),
         address.getPort(), blockId, offset, length);
   }
 

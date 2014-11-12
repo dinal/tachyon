@@ -1,7 +1,6 @@
 package tachyon.worker;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
@@ -12,7 +11,6 @@ import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 
 import tachyon.Constants;
@@ -168,7 +166,7 @@ public class TachyonWorker implements Runnable {
     // deployment more complicated.
     InetSocketAddress dataAddress = new InetSocketAddress(workerAddress.getHostName(), dataPort);
     BlocksLocker blockLocker = new BlocksLocker(mWorkerStorage, Users.DATASERVER_USER_ID);
-    mDataServer = createDataServer(dataAddress, blockLocker);
+    mDataServer = DataServer.createDataServer(dataAddress, blockLocker);
     mDataPort = mDataServer.getPort();
 
     mHeartbeatThread = new Thread(this);
@@ -191,18 +189,6 @@ public class TachyonWorker implements Runnable {
     mWorkerAddress =
         new NetAddress(workerAddress.getAddress().getCanonicalHostName(), mPort, mDataPort);
     mWorkerStorage.initialize(mWorkerAddress);
-  }
-
-  private DataServer createDataServer(final InetSocketAddress dataAddress,
-      final BlocksLocker blockLocker) {
-    Object dataServerObj =
-        CommonUtils.createNewClassInstance(WorkerConf.get().DATA_SERVER, new Class[] {
-            InetSocketAddress.class, BlocksLocker.class },
-            new Object[] { dataAddress, blockLocker });
-
-    Preconditions.checkArgument(dataServerObj instanceof DataServer,
-        "Data Server is not configured properly.");
-    return (DataServer) dataServerObj;
   }
 
   /**

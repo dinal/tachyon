@@ -66,6 +66,8 @@ public class CommonConf extends Utils {
 
   public final boolean IN_TEST_MODE;
 
+  public final boolean JXIO_ENABLED;
+
   private CommonConf() {
     if (System.getProperty("tachyon.home") == null) {
       LOG.warn("tachyon.home is not set. Using {} as the default value.", DEFAULT_HOME);
@@ -109,6 +111,8 @@ public class CommonConf extends Utils {
         getListProperty("tachyon.underfs.hadoop.prefixes", DEFAULT_HADOOP_UFS_PREFIX);
 
     IN_TEST_MODE = getBooleanProperty("tachyon.test.mode", false);
+    
+    JXIO_ENABLED = getBooleanProperty("jxio.enable", false);
   }
 
   public static void assertValidPort(final int port) {

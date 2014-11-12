@@ -32,7 +32,7 @@ public class WorkerConf extends Utils {
   public final int PORT;
   public final int DATA_PORT;
   public final String DATA_FOLDER;
-  public final Class<?> DATA_SERVER;
+  public final Class<?> DATA_SERVER_CLASS;
   public final long MEMORY_SIZE;
   public final long HEARTBEAT_TIMEOUT_MS;
   public final int TO_MASTER_HEARTBEAT_INTERVAL_MS;
@@ -63,8 +63,8 @@ public class WorkerConf extends Utils {
     DATA_PORT =
         getIntProperty("tachyon.worker.data.port", Constants.DEFAULT_WORKER_DATA_SERVER_PORT);
     DATA_FOLDER = getProperty("tachyon.worker.data.folder", "/mnt/ramdisk");
-    DATA_SERVER =
-        getClass("tachyon.worker.data.server", tachyon.worker.netty.NettyDataServer.class);
+    DATA_SERVER_CLASS =
+        getClass("tachyon.worker.data.server.class", Constants.DEFAULT_DATA_SERVER_CLASS);
     MEMORY_SIZE =
         CommonUtils.parseSpaceSize(getProperty("tachyon.worker.memory.size", (128 * Constants.MB)
             + ""));

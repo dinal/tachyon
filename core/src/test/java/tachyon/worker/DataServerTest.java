@@ -1,12 +1,8 @@
 package tachyon.worker;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -19,18 +15,18 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import org.accelio.jxio.jxioConnection.JxioConnection;
-
-import tachyon.Constants;
-import tachyon.NetworkType;
 import tachyon.TestUtils;
+import tachyon.client.RemoteBlockReader;
 import tachyon.client.TachyonFS;
 import tachyon.client.WriteType;
+import tachyon.conf.CommonConf;
 import tachyon.conf.UserConf;
+import tachyon.conf.WorkerConf;
 import tachyon.master.LocalTachyonCluster;
 import tachyon.thrift.ClientBlockInfo;
 import tachyon.thrift.FileAlreadyExistException;
 import tachyon.thrift.InvalidPathException;
+import tachyon.util.CommonUtils;
 import tachyon.worker.DataServerMessage;
 
 /**
@@ -45,27 +41,28 @@ public class DataServerTest {
   public static Collection<Object[]> data() {
     // creates a new instance of DataServerTest for each network type
     List<Object[]> list = new ArrayList<Object[]>();
-    for (final NetworkType type : NetworkType.values()) {
-      list.add(new Object[] {type});
+    list.add(new Object[] { "tachyon.worker.netty.NettyDataServer" });
+    list.add(new Object[] { "tachyon.worker.nio.NIODataServer" });
+    if (CommonConf.get().JXIO_ENABLED) {
+      list.add(new Object[] { "tachyon.worker.rdma.RDMADataServer" });
     }
     return list;
   }
 
-  private final NetworkType mType;
+  private final String mDataServerClass;
   private LocalTachyonCluster mLocalTachyonCluster = null;
 
   private TachyonFS mTFS = null;
 
-  public DataServerTest(NetworkType type) {
-    mType = type;
+  public DataServerTest(String className) {
+    mDataServerClass = className;
   }
 
   @After
   public final void after() throws Exception {
     mLocalTachyonCluster.stop();
     System.clearProperty("tachyon.user.quota.unit.bytes");
-    System.clearProperty("tachyon.worker.network.type");
-    System.clearProperty("tachyon.user.network.type");
+    System.clearProperty("tachyon.worker.data.server.class");
   }
 
   /**
@@ -97,8 +94,7 @@ public class DataServerTest {
   @Before
   public final void before() throws IOException {
     System.setProperty("tachyon.user.quota.unit.bytes", USER_QUOTA_UNIT_BYTES + "");
-    System.setProperty("tachyon.worker.network.type", mType.toString());
-    System.setProperty("tachyon.user.network.type", mType.toString());
+    System.setProperty("tachyon.worker.data.server.class", mDataServerClass);
     mLocalTachyonCluster = new LocalTachyonCluster(WORKER_CAPACITY_BYTES);
     mLocalTachyonCluster.start();
     mTFS = mLocalTachyonCluster.getClient();
@@ -185,49 +181,16 @@ public class DataServerTest {
    * Create a new socket to the data port and send a block request. The returned value is the
    * response from the server.
    */
-  private DataServerMessage request(final ClientBlockInfo block, final long offset,
+  protected DataServerMessage request(final ClientBlockInfo block, final long offset,
       final long length) throws IOException {
-    DataServerMessage recvMsg =
-        DataServerMessage.createBlockResponseMessage(false, block.blockId, offset, length);
 
-    if (mType == NetworkType.RDMA) {
-      try {
-        URI uri =
-            new URI(String.format("rdma://%s:%d/blockId=%d&offset=%d&length=%d", block
-                .getLocations().get(0).mHost, block.getLocations().get(0).mSecondaryPort,
-                block.blockId, offset, length));
-        JxioConnection jc = new JxioConnection(uri);
-        try {
-          InputStream input = jc.getInputStream();
-          recvMsg.recv(input);
-        } finally {
-          jc.disconnect();
-        }
-      } catch (URISyntaxException e) {
-        throw new IOException("rdma uri could not be resolved");
-      }
+    if (System.getProperty("tachyon.worker.data.server.class").equals(
+        "tachyon.worker.rdma.RDMADataServer")) {
+      return createRequest("tachyon.worker.RDMADataServerRequest").request(block, offset, length);
     } else {
-      DataServerMessage sendMsg =
-          DataServerMessage.createBlockRequestMessage(block.blockId, offset, length);
-      SocketChannel socketChannel =
-          SocketChannel.open(new InetSocketAddress(block.getLocations().get(0).mHost, block
-              .getLocations().get(0).mSecondaryPort));
-      try {
-        while (!sendMsg.finishSending()) {
-          sendMsg.send(socketChannel);
-        }
-
-        while (!recvMsg.isMessageReady()) {
-          int numRead = recvMsg.recv(socketChannel);
-          if (numRead == -1) {
-            break;
-          }
-        }
-      } finally {
-        socketChannel.close();
-      }
+      return createRequest("tachyon.worker.TCPDataServerRequest").request(block, offset, length);
     }
-    return recvMsg;
+
   }
 
   @Test
@@ -237,5 +200,21 @@ public class DataServerTest {
     ClientBlockInfo block = mTFS.getFileBlocks(fileId).get(0);
     DataServerMessage recvMsg = request(block, length * 2, 1);
     assertError(recvMsg, block.blockId);
+  }
+
+  public DataServerRequest createRequest(String ClassName) {
+    Object requestObj = null;
+    try {
+      Class<?> cls = Class.forName(ClassName);
+      requestObj = CommonUtils.createNewClassInstance(cls, null, null);
+    } catch (Exception e) {
+      Assert.assertNull(requestObj);
+    }
+    return (DataServerRequest) requestObj;
+  }
+
+  public interface DataServerRequest {
+    DataServerMessage request(final ClientBlockInfo block, final long offset, final long length)
+        throws IOException;
   }
 }
